@@ -350,8 +350,10 @@ export async function seedRetail(ctx: SeedContext, bundle: EntityBundle): Promis
       createdAt: openingDate,
     });
 
-    // Bulk lines also sit in the back store.
-    if (!product.weighted && rng.chance(0.55)) {
+    // Bulk lines also sit in the back store - except the ones that are meant to
+    // look short, because Product.stockQuantity rolls every location up and a
+    // full pallet out the back would hide them from the reorder report.
+    if (!product.weighted && !product.low && rng.chance(0.55)) {
       ledger.move({
         productId: product.id,
         locationId: warehouse.id,

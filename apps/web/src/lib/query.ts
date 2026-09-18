@@ -28,36 +28,51 @@ export const queryClient = new QueryClient({
   },
 });
 
-/** Query keys in one place, so invalidation never misses a screen. */
+/**
+ * Query keys in one place, so invalidation never misses a screen.
+ *
+ * The trailing parameter is DROPPED when it is undefined, which is what makes
+ * partial matching work. React Query compares a filter key element by element,
+ * so ['sales', undefined] does not match ['sales', { from, to }] - invalidating
+ * after a checkout would silently leave a filtered transactions list stale.
+ * Omitting the element instead makes qk.sales() a true prefix of every
+ * qk.sales(filters), so one invalidation reaches them all.
+ */
+function key<const N extends string>(name: N, params?: unknown): readonly unknown[] {
+  return params === undefined ? ([name] as const) : ([name, params] as const);
+}
+
 export const qk = {
   me: ['me'] as const,
-  entities: (params?: unknown) => ['entities', params] as const,
+  entities: (params?: unknown) => key('entities', params),
   entity: (id: string) => ['entity', id] as const,
-  users: (params?: unknown) => ['users', params] as const,
-  categories: (params?: unknown) => ['categories', params] as const,
-  products: (params?: unknown) => ['products', params] as const,
+  users: (params?: unknown) => key('users', params),
+  categories: (params?: unknown) => key('categories', params),
+  products: (params?: unknown) => key('products', params),
   product: (id: string) => ['product', id] as const,
   menu: () => ['menu'] as const,
-  inventory: (params?: unknown) => ['inventory', params] as const,
-  movements: (params?: unknown) => ['movements', params] as const,
+  inventory: (params?: unknown) => key('inventory', params),
+  movements: (params?: unknown) => key('movements', params),
   lowStock: () => ['low-stock'] as const,
-  suppliers: (params?: unknown) => ['suppliers', params] as const,
-  purchaseOrders: (params?: unknown) => ['purchase-orders', params] as const,
-  sales: (params?: unknown) => ['sales', params] as const,
+  suppliers: (params?: unknown) => key('suppliers', params),
+  purchaseOrders: (params?: unknown) => key('purchase-orders', params),
+  sales: (params?: unknown) => key('sales', params),
   sale: (id: string) => ['sale', id] as const,
   heldSales: () => ['held-sales'] as const,
-  customers: (params?: unknown) => ['customers', params] as const,
+  customers: (params?: unknown) => key('customers', params),
   customer: (id: string) => ['customer', id] as const,
-  promotions: (params?: unknown) => ['promotions', params] as const,
+  promotions: (params?: unknown) => key('promotions', params),
   floorAreas: () => ['floor-areas'] as const,
-  tables: (params?: unknown) => ['tables', params] as const,
-  orders: (params?: unknown) => ['orders', params] as const,
+  tables: (params?: unknown) => key('tables', params),
+  orders: (params?: unknown) => key('orders', params),
   order: (id: string) => ['order', id] as const,
   tickets: (station?: string | null) => ['kds-tickets', station ?? 'all'] as const,
-  onlineOrders: (params?: unknown) => ['online-orders', params] as const,
-  storefront: (slug: string, params?: unknown) => ['storefront', slug, params] as const,
-  reports: (report: string, params?: unknown) => ['reports', report, params] as const,
+  onlineOrders: (params?: unknown) => key('online-orders', params),
+  storefront: (slug: string, params?: unknown) =>
+    params === undefined ? (['storefront', slug] as const) : (['storefront', slug, params] as const),
+  reports: (report: string, params?: unknown) =>
+    params === undefined ? (['reports', report] as const) : (['reports', report, params] as const),
   settings: () => ['settings'] as const,
-  audit: (params?: unknown) => ['audit', params] as const,
-  notifications: (params?: unknown) => ['notifications', params] as const,
+  audit: (params?: unknown) => key('audit', params),
+  notifications: (params?: unknown) => key('notifications', params),
 };
