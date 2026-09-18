@@ -1,0 +1,231 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==========================================================================
+   Design tokens
+   --------------------------------------------------------------------------
+   Three surfaces, three moods:
+     - back office : light, calm, information dense
+     - POS terminal: switchable, defaults to the bright reference layout
+     - KDS         : near-black with oversized type, readable across a kitchen
+   ========================================================================== */
+
+@layer base {
+  :root {
+    --background: 210 20% 97%;
+    --foreground: 222 24% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 24% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 24% 12%;
+
+    --primary: 215 100% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 20% 94%;
+    --secondary-foreground: 222 24% 18%;
+
+    --muted: 210 20% 95%;
+    --muted-foreground: 215 14% 42%;
+
+    --accent: 215 100% 96%;
+    --accent-foreground: 215 100% 34%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 71% 40%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 26 60% 14%;
+
+    --border: 214 20% 88%;
+    --input: 214 20% 88%;
+    --ring: 215 100% 50%;
+
+    --radius: 0.65rem;
+
+    /* Entity branding, overwritten at runtime from entity.accentColor */
+    --brand: 215 100% 50%;
+  }
+
+  [data-theme='dark'] {
+    --background: 222 22% 9%;
+    --foreground: 210 20% 96%;
+
+    --card: 222 20% 13%;
+    --card-foreground: 210 20% 96%;
+
+    --popover: 222 20% 13%;
+    --popover-foreground: 210 20% 96%;
+
+    --primary: 215 100% 56%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 222 16% 19%;
+    --secondary-foreground: 210 20% 92%;
+
+    --muted: 222 16% 17%;
+    --muted-foreground: 215 14% 65%;
+
+    --accent: 215 60% 22%;
+    --accent-foreground: 210 30% 94%;
+
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 66% 45%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 55%;
+    --warning-foreground: 26 60% 12%;
+
+    --border: 222 14% 24%;
+    --input: 222 14% 24%;
+    --ring: 215 100% 56%;
+  }
+
+  /* The kitchen screen is its own world: maximum contrast, no subtlety. */
+  [data-surface='kds'] {
+    --background: 0 0% 4%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 10%;
+    --card-foreground: 0 0% 100%;
+    --border: 0 0% 24%;
+    --muted: 0 0% 14%;
+    --muted-foreground: 0 0% 78%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+  }
+
+  /* Tablet-first: never let a stray double-tap zoom the register. */
+  [data-surface='pos'],
+  [data-surface='kds'] {
+    touch-action: manipulation;
+    user-select: none;
+  }
+
+  [data-surface='pos'] input,
+  [data-surface='pos'] textarea {
+    user-select: text;
+  }
+
+  /* Numbers line up in columns or the cashier cannot scan a receipt visually. */
+  .tabular {
+    @apply font-mono tabular-nums;
+    font-variant-numeric: tabular-nums;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-border;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/40;
+  }
+}
+
+@layer components {
+  /* Large, unambiguous hit areas - the POS is used with fingers, not a mouse. */
+  .touch-target {
+    @apply min-h-touch min-w-touch;
+  }
+
+  .tile {
+    @apply relative flex select-none flex-col justify-between overflow-hidden rounded-xl
+           p-3 text-left transition-transform duration-75 active:scale-[0.97];
+  }
+
+  .tile-label {
+    @apply text-sm font-semibold leading-tight;
+  }
+
+  /* The line-item list on the check panel. */
+  .check-row {
+    @apply flex items-start justify-between gap-3 px-4 py-3 text-sm;
+  }
+
+  .panel {
+    @apply rounded-xl border bg-card text-card-foreground shadow-sm;
+  }
+
+  .stat-value {
+    @apply tabular text-2xl font-semibold tracking-tight;
+  }
+
+  .focus-ring {
+    @apply outline-none ring-offset-2 ring-offset-background focus-visible:ring-2 focus-visible:ring-ring;
+  }
+}
+
+@layer utilities {
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .safe-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* ==========================================================================
+   Receipt printing - the browser print dialog is our only printer.
+   ========================================================================== */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #receipt-print,
+  #receipt-print * {
+    visibility: visible;
+  }
+  #receipt-print {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 80mm;
+    padding: 4mm;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #000;
+    background: #fff;
+  }
+  .no-print {
+    display: none !important;
+  }
+  @page {
+    size: 80mm auto;
+    margin: 0;
+  }
+}
