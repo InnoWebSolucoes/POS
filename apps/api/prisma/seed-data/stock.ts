@@ -16,6 +16,10 @@ import { id, money, round3 } from './helpers.js';
  *     every variant; ProductVariant.stockQuantity is the per-variant rollup
  *   * StockMovement.balanceAfter is the variant balance when the movement names a
  *     variant, otherwise the product balance
+ *
+ * Movements may be handed over in any order - they are replayed strictly by
+ * createdAt at flush time, so balanceAfter reads correctly when someone opens the
+ * movement history of a product.
  */
 
 export interface SeedMovement {
@@ -44,113 +48,102 @@ interface LevelState {
 
 const CHUNK = 200;
 
-async function inChunks<T>(rows: T[], write: (batch: T[]) => Promise<unknown>): Promise<void> {
+export async function inChunks<T>(
+  rows: T[],
+  write: (batch: T[]) => Promise<unknown>,
+): Promise<void> {
   for (let i = 0; i < rows.length; i += CHUNK) {
     await write(rows.slice(i, i + CHUNK));
   }
 }
 
 export class SeedLedger {
-  private readonly levels = new Map<string, LevelState>();
-  private readonly productQty = new Map<string, number>();
-  private readonly variantQty = new Map<string, number>();
-  private readonly productAvgCost = new Map<string, number>();
-  private readonly variantAvgCost = new Map<string, number>();
-  private readonly movements: Prisma.StockMovementCreateManyInput[] = [];
+  private readonly pending: SeedMovement[] = [];
 
   constructor(private readonly entityId: string) {}
 
-  /** Entity-wide balance, exactly what a report or the product list shows. */
-  balance(productId: string): number {
-    return round3(this.productQty.get(productId) ?? 0);
-  }
-
-  locationBalance(productId: string, locationId: string, variantId: string | null = null): number {
-    return round3(this.levels.get(this.key(productId, variantId, locationId))?.quantity ?? 0);
-  }
-
-  private key(productId: string, variantId: string | null, locationId: string): string {
-    return `${productId}|${variantId ?? ''}|${locationId}`;
-  }
-
-  move(input: SeedMovement): number {
-    const variantId = input.variantId ?? null;
-    const variantKey = variantId ?? '';
-    const levelKey = this.key(input.productId, variantId, input.locationId);
-
-    const level: LevelState = this.levels.get(levelKey) ?? {
-      productId: input.productId,
-      variantId,
-      variantKey,
-      locationId: input.locationId,
-      quantity: 0,
-      avgCostMinor: 0,
-    };
-
-    const previousQty = level.quantity;
-    const unitCost = input.unitCostMinor ?? null;
-
-    // Weighted-average cost only moves when stock comes IN with a known cost.
-    if (input.quantity > 0 && unitCost != null && unitCost > 0) {
-      level.avgCostMinor = weightedAverageCost(
-        Math.max(previousQty, 0),
-        level.avgCostMinor,
-        input.quantity,
-        unitCost,
-      );
-      this.productAvgCost.set(input.productId, level.avgCostMinor);
-      if (variantId) this.variantAvgCost.set(variantId, level.avgCostMinor);
-    }
-
-    level.quantity = round3(previousQty + input.quantity);
-    this.levels.set(levelKey, level);
-
-    const productBalance = round3((this.productQty.get(input.productId) ?? 0) + input.quantity);
-    this.productQty.set(input.productId, productBalance);
-
-    let balanceAfter = productBalance;
-    if (variantId) {
-      balanceAfter = round3((this.variantQty.get(variantId) ?? 0) + input.quantity);
-      this.variantQty.set(variantId, balanceAfter);
-    }
-
-    this.movements.push({
-      id: id(),
-      entityId: this.entityId,
-      productId: input.productId,
-      variantId,
-      locationId: input.locationId,
-      type: input.type,
-      quantity: round3(input.quantity),
-      balanceAfter,
-      unitCostMinor: unitCost != null ? money(unitCost) : null,
-      reason: input.reason ?? null,
-      reference: input.reference ?? null,
-      note: input.note ?? null,
-      userId: input.userId ?? null,
-      userName: input.userName ?? null,
-      createdAt: input.createdAt,
-    });
-
-    return balanceAfter;
+  move(input: SeedMovement): void {
+    this.pending.push(input);
   }
 
   get movementCount(): number {
-    return this.movements.length;
+    return this.pending.length;
   }
 
-  get levelCount(): number {
-    return this.levels.size;
-  }
+  /** Replays the ledger and writes movements, levels and rollups. */
+  async flush(client: PrismaClient): Promise<{ movements: number; levels: number }> {
+    const ordered = [...this.pending].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
 
-  /** Writes the ledger, the levels and the denormalised rollups in one go. */
-  async flush(client: PrismaClient): Promise<void> {
-    const ordered = [...this.movements].sort(
-      (a, b) => (a.createdAt as Date).getTime() - (b.createdAt as Date).getTime(),
-    );
-    await inChunks(ordered, (batch) => client.stockMovement.createMany({ data: batch }));
+    const levels = new Map<string, LevelState>();
+    const productQty = new Map<string, number>();
+    const variantQty = new Map<string, number>();
+    const productAvgCost = new Map<string, number>();
+    const variantAvgCost = new Map<string, number>();
+    const rows: Prisma.StockMovementCreateManyInput[] = [];
 
-    const levels: Prisma.InventoryLevelCreateManyInput[] = [...this.levels.values()].map((level) => ({
+    for (const input of ordered) {
+      const variantId = input.variantId ?? null;
+      const variantKey = variantId ?? '';
+      const levelKey = `${input.productId}|${variantKey}|${input.locationId}`;
+
+      const level: LevelState = levels.get(levelKey) ?? {
+        productId: input.productId,
+        variantId,
+        variantKey,
+        locationId: input.locationId,
+        quantity: 0,
+        avgCostMinor: 0,
+      };
+
+      const previousQty = level.quantity;
+      const unitCost = input.unitCostMinor ?? null;
+
+      // Weighted-average cost only moves when stock comes IN with a known cost.
+      if (input.quantity > 0 && unitCost != null && unitCost > 0) {
+        level.avgCostMinor = weightedAverageCost(
+          Math.max(previousQty, 0),
+          level.avgCostMinor,
+          input.quantity,
+          unitCost,
+        );
+        productAvgCost.set(input.productId, level.avgCostMinor);
+        if (variantId) variantAvgCost.set(variantId, level.avgCostMinor);
+      }
+
+      level.quantity = round3(previousQty + input.quantity);
+      levels.set(levelKey, level);
+
+      const productBalance = round3((productQty.get(input.productId) ?? 0) + input.quantity);
+      productQty.set(input.productId, productBalance);
+
+      let balanceAfter = productBalance;
+      if (variantId) {
+        balanceAfter = round3((variantQty.get(variantId) ?? 0) + input.quantity);
+        variantQty.set(variantId, balanceAfter);
+      }
+
+      rows.push({
+        id: id(),
+        entityId: this.entityId,
+        productId: input.productId,
+        variantId,
+        locationId: input.locationId,
+        type: input.type,
+        quantity: round3(input.quantity),
+        balanceAfter,
+        unitCostMinor: unitCost != null ? money(unitCost) : null,
+        reason: input.reason ?? null,
+        reference: input.reference ?? null,
+        note: input.note ?? null,
+        userId: input.userId ?? null,
+        userName: input.userName ?? null,
+        createdAt: input.createdAt,
+      });
+    }
+
+    await inChunks(rows, (batch) => client.stockMovement.createMany({ data: batch }));
+
+    const levelRows: Prisma.InventoryLevelCreateManyInput[] = [...levels.values()].map((level) => ({
       id: id(),
       productId: level.productId,
       variantId: level.variantId,
@@ -160,10 +153,10 @@ export class SeedLedger {
       reserved: 0,
       avgCostMinor: money(level.avgCostMinor),
     }));
-    await inChunks(levels, (batch) => client.inventoryLevel.createMany({ data: batch }));
+    await inChunks(levelRows, (batch) => client.inventoryLevel.createMany({ data: batch }));
 
-    for (const [productId, quantity] of this.productQty) {
-      const avgCost = this.productAvgCost.get(productId);
+    for (const [productId, quantity] of productQty) {
+      const avgCost = productAvgCost.get(productId);
       await client.product.update({
         where: { id: productId },
         data: {
@@ -173,8 +166,8 @@ export class SeedLedger {
       });
     }
 
-    for (const [variantId, quantity] of this.variantQty) {
-      const avgCost = this.variantAvgCost.get(variantId);
+    for (const [variantId, quantity] of variantQty) {
+      const avgCost = variantAvgCost.get(variantId);
       await client.productVariant.update({
         where: { id: variantId },
         data: {
@@ -183,7 +176,7 @@ export class SeedLedger {
         },
       });
     }
+
+    return { movements: rows.length, levels: levelRows.length };
   }
 }
-
-export { inChunks };
