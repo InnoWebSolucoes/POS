@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect } from 'react';
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { ROLE_HOME, type Permission } from '@pos/shared';
 
 import { useAuth } from './lib/auth-store';
@@ -108,6 +108,41 @@ function HomeRedirect() {
   if (status === 'loading') return <FullPageSpinner />;
   if (!user) return <Navigate to="/login" replace />;
   return <Navigate to={ROLE_HOME[user.role]} replace />;
+}
+
+/**
+ * The catch-all deliberately renders instead of redirecting.
+ *
+ * Sending an unknown path back to the role's home screen looks tidy until that
+ * home screen is itself a path that does not resolve - then the router bounces
+ * between the two forever and the user just sees a white page with no error.
+ * A dead end that says so is far easier to diagnose than a silent loop.
+ */
+function NotFoundPage() {
+  const user = useAuth((s) => s.user);
+  const status = useAuth((s) => s.status);
+  const location = useLocation();
+
+  if (status === 'loading') return <FullPageSpinner />;
+
+  const home = user ? ROLE_HOME[user.role] : '/login';
+
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-6 text-center">
+      <p className="text-6xl font-semibold text-muted-foreground">404</p>
+      <h1 className="text-xl font-semibold text-foreground">Pagina nao encontrada</h1>
+      <p className="max-w-md text-sm text-muted-foreground">
+        O endereco <code className="rounded bg-muted px-1.5 py-0.5 font-mono">{location.pathname}</code>{' '}
+        nao corresponde a nenhuma pagina.
+      </p>
+      <Link
+        to={home}
+        className="mt-2 inline-flex min-h-touch items-center rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground"
+      >
+        Voltar ao inicio
+      </Link>
+    </div>
+  );
 }
 
 export default function App() {
@@ -275,7 +310,7 @@ export default function App() {
           </Route>
 
           <Route path="/" element={<HomeRedirect />} />
-          <Route path="*" element={<HomeRedirect />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Suspense>
       <Toaster />

@@ -79,7 +79,14 @@ export default {
         kds: ['1.75rem', { lineHeight: '2rem', fontWeight: '600' }],
         'kds-lg': ['2.5rem', { lineHeight: '2.75rem', fontWeight: '700' }],
       },
+      // Tap targets: 3rem is the smallest comfortable finger target, 4rem is
+      // for the primary register buttons. Both axes, because .touch-target
+      // applies min-h-touch and min-w-touch together.
       minHeight: {
+        touch: '3rem',
+        'touch-lg': '4rem',
+      },
+      minWidth: {
         touch: '3rem',
         'touch-lg': '4rem',
       },

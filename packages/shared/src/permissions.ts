@@ -191,13 +191,20 @@ export function hasAnyPermission(
   return permissions.some((p) => granted.includes(p));
 }
 
-/** The screen a user should land on right after logging in. */
+/**
+ * The screen a user should land on right after logging in.
+ *
+ * These must stay in step with the route table in apps/web/src/App.tsx, which
+ * uses Portuguese paths. A target that does not resolve sends the router to its
+ * catch-all, and if that catch-all redirects home you get an infinite loop and
+ * a blank page rather than an error.
+ */
 export const ROLE_HOME: Record<Role, string> = {
-  super_admin: '/admin/entities',
+  super_admin: '/admin/entidades',
   entity_admin: '/dashboard',
   manager: '/dashboard',
   cashier: '/pos',
-  stock_clerk: '/inventory',
-  waiter: '/restaurant/floor',
+  stock_clerk: '/stock',
+  waiter: '/restaurante/sala',
   kitchen: '/kds',
 };
