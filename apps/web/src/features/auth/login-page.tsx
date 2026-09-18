@@ -2,7 +2,7 @@ import * as React from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Eye, EyeOff, KeyRound, Lock, Mail } from 'lucide-react';
+import { Eye, EyeOff, KeyRound, Lock, Mail, Store } from 'lucide-react';
 import { ROLE_HOME, type AuthUser } from '@pos/shared';
 
 import { Button, Card, Input, Label } from '@/components/ui';
@@ -202,6 +202,18 @@ export default function LoginPage() {
                   <span>{t('auth.signInWithPin')}</span>
                 </Link>
               </Button>
+              <Button asChild variant="outline" size="lg" block>
+                <Link to="/registar">
+                  <Store className="size-5" aria-hidden="true" />
+                  <span>{t('auth.createAccount', 'Criar conta')}</span>
+                </Link>
+              </Button>
+              <p className="text-center text-xs text-muted-foreground">
+                {t(
+                  'auth.createAccountHint',
+                  'Ainda nao tem conta? Registe o seu negocio e escolha o tipo: retalho, restaurante ou loja online.',
+                )}
+              </p>
               <p className="text-center text-xs text-muted-foreground">
                 {t(
                   'auth.forgotPasswordHint',

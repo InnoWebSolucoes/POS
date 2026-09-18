@@ -15,6 +15,7 @@ import { optionalAuth, requireAuth, requireAuthContext } from '../../lib/middlew
 import { TX_OPTIONS, prisma } from '../../lib/prisma.js';
 
 import { toAuthUser, toEntityDto, type AuthUserRow, type EntityRow } from './mappers.js';
+import { emailAvailable, registerBusiness, registerSchema } from './register.js';
 import {
   CREDENTIAL_SELECT,
   PIN_SELECT,
@@ -69,6 +70,51 @@ function sessionPayload(
 ): { user: AuthUser; entity: EntityDto | null } {
   return { user: toAuthUser(user), entity: toEntityDto(entity) };
 }
+
+/* -------------------------------------------------------------------------- */
+/* POST /api/auth/register - self-service sign-up                              */
+/* -------------------------------------------------------------------------- */
+
+router.post(
+  '/register',
+  validateBody(registerSchema),
+  asyncHandler(async (req, res) => {
+    // Same throttle as login: this is a public write and the only route in the
+    // system that can create a tenant.
+    guardAttempts(`register:${clientIp(req)}`);
+
+    const result = await registerBusiness(req.body, {
+      userAgent: req.headers['user-agent'] ?? null,
+    });
+
+    await audit({
+      entityId: result.entity?.id ?? null,
+      userId: result.user.id,
+      userName: result.user.name,
+      action: AUDIT_ACTIONS.ENTITY_CREATE,
+      targetType: 'entity',
+      targetId: result.entity?.id ?? null,
+      details: { via: 'self_service_signup', mode: result.entity?.mode },
+      ipAddress: clientIp(req),
+    });
+
+    clearAttempts(`register:${clientIp(req)}`);
+    res.status(201).json(result);
+  }),
+);
+
+/** Lets the sign-up form warn before the user fills in the whole thing. */
+router.get(
+  '/email-available',
+  asyncHandler(async (req, res) => {
+    const email = String(req.query.email ?? '').trim();
+    if (!email || !email.includes('@')) {
+      res.json({ available: false, reason: 'invalid' });
+      return;
+    }
+    res.json({ available: await emailAvailable(email) });
+  }),
+);
 
 /* -------------------------------------------------------------------------- */
 /* POST /api/auth/login                                                        */

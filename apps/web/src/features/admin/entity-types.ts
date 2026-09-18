@@ -1,20 +1,5 @@
 import type { CostingMethod, EntityMode, Locale, PricingMode } from '@pos/shared';
 
-/**
- * Tenancy administration: the list filters, the per-tenant stat tiles and the
- * provisioning wizard's form model.
- */
-
-export interface EntityStats {
-  entityId: string;
-  productCount: number;
-  userCount: number;
-  locationCount: number;
-  /** Null for a role without financial visibility - never assume a number. */
-  todayRevenueMinor: number | null;
-  todaySaleCount: number;
-  openOrderCount: number;
-}
 
 export interface EntityListParams {
   page: number;

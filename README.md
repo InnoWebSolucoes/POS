@@ -45,6 +45,28 @@ npm run db:reset
 
 ---
 
+## Who the software is for
+
+There are two kinds of people in this system, and keeping them apart is the whole design.
+
+**The businesses.** A supermarket, a restaurant, an online shop. Each one is an Entity: its own
+catalogue, staff, stock, sales and settings. A business signs itself up at `/registar`, chooses what
+kind of business it is, and that single choice reshapes the product around it — which dashboard it
+lands on, which navigation it gets, which workflows exist at all. A restaurant gets a floor plan,
+courses and a kitchen display. A shop gets a scanning register and weighted goods. An online store
+gets a storefront and a fulfilment queue. Signing up creates the entity, its first location and its
+owner account in one transaction, and signs the owner straight in.
+
+**The platform operator.** Whoever runs the installation. The super admin account exists to keep the
+platform healthy — how many businesses are on it, of what type, how many users, whether the service
+and database are up. It is deliberately **not** a window onto client trading: no revenue, no margin,
+no sales figures appear anywhere in the operator console. When the operator needs to help a client
+they can enter that client's entity, and the app says so plainly before they do and writes it to the
+audit log.
+
+Tenancy is enforced on the server, not in the UI. A member is pinned to their own entity and the
+`X-Entity-Id` header is ignored for them; only a super admin can use it to move between tenants.
+
 ## Architecture
 
 ```

@@ -4,7 +4,7 @@ import type { EntityDto, Paginated } from '@pos/shared';
 import { api } from '@/lib/api';
 import { qk } from '@/lib/query';
 
-import type { EntityListParams, EntityStats } from './entity-types';
+import type { EntityListParams } from './entity-types';
 
 const BASE = '/api/entities';
 
@@ -25,20 +25,6 @@ export function useEntityList(params: EntityListParams) {
   });
 }
 
-/**
- * One stats call per visible tenant. They are separate queries on purpose: a
- * slow tenant must not hold the whole table hostage, and each row can retry on
- * its own.
- */
-export function useEntityStats(entityIds: string[]) {
-  return useQueries({
-    queries: entityIds.map((id) => ({
-      queryKey: [...qk.entity(id), 'stats'] as const,
-      queryFn: () => api.get<EntityStats>(`${BASE}/${id}/stats`),
-      staleTime: 60_000,
-    })),
-  });
-}
 
 export function useCreateEntity() {
   const client = useQueryClient();

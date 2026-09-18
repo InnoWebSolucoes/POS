@@ -17,6 +17,7 @@ import PosShell from './components/layout/pos-shell';
 /* ----------------------------------------------------------------- pages -- */
 const LoginPage = lazy(() => import('./features/auth/login-page'));
 const PinLoginPage = lazy(() => import('./features/auth/pin-login-page'));
+const RegisterPage = lazy(() => import('./features/auth/register-page'));
 
 const DashboardPage = lazy(() => import('./features/dashboard/dashboard-page'));
 
@@ -175,6 +176,7 @@ export default function App() {
           {/* Public */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/pin" element={<PinLoginPage />} />
+          <Route path="/registar" element={<RegisterPage />} />
 
           {/* Customer-facing storefront - no staff login required */}
           <Route path="/loja/:entitySlug" element={<StorefrontPage />} />
