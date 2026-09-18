@@ -18,3 +18,4 @@ coverage/
 .idea/
 .vscode/*
 !.vscode/extensions.json
+apps/api/prisma/smoke.db*

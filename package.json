@@ -22,7 +22,9 @@
     "db:seed": "npm run db:seed -w @pos/api",
     "db:studio": "npm run db:studio -w @pos/api",
     "db:reset": "npm run db:reset -w @pos/api",
-    "test": "npm run test -w @pos/api"
+    "test": "npm run test -w @pos/api",
+    "smoke": "node scripts/smoke-test.mjs",
+    "icons": "node scripts/generate-icons.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",

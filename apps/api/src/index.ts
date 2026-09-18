@@ -3,6 +3,7 @@ import { createApp } from './app.js';
 import { env } from './lib/env.js';
 import { initRealtime } from './lib/realtime.js';
 import { disconnectPrisma, prisma } from './lib/prisma.js';
+import { ensureSuperAdmin } from './lib/bootstrap.js';
 
 async function main(): Promise<void> {
   const app = createApp();
@@ -11,6 +12,9 @@ async function main(): Promise<void> {
   initRealtime(server);
 
   await prisma.$connect();
+
+  // A fresh install has no way in otherwise - see lib/bootstrap.ts.
+  await ensureSuperAdmin();
 
   server.listen(env.port, env.host, () => {
     // eslint-disable-next-line no-console
