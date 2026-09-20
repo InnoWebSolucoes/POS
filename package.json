@@ -24,7 +24,10 @@
     "db:reset": "npm run db:reset -w @pos/api",
     "test": "npm run test -w @pos/api",
     "smoke": "node scripts/smoke-test.mjs",
-    "icons": "node scripts/generate-icons.mjs"
+    "icons": "node scripts/generate-icons.mjs",
+    "db:sql": "node scripts/generate-sql.mjs",
+    "db:deploy": "npm run db:deploy -w @pos/api",
+    "test:create": "node scripts/test-create-flows.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",

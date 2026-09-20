@@ -123,6 +123,11 @@ model User {
   role         String  @default("cashier")
   /// Short numeric PIN for fast POS switching (hashed).
   pinHash      String?
+  /// Per-member tuning on top of the role's defaults, as JSON:
+  /// { "granted": ["report:read"], "revoked": ["product:cost"] }.
+  /// The role stays the starting point so a business can hire a "cashier" and
+  /// still decide, for that one person, whether they may see margins.
+  permissionOverrides String @default("{}")
   phone        String?
   avatarUrl    String?
   locale       String  @default("pt-PT")

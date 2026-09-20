@@ -70,6 +70,9 @@ export function StatCard({
   const good = direction === 'flat' ? null : invertDelta ? direction === 'down' : direction === 'up';
   const DeltaIcon = direction === 'up' ? ArrowUpRight : direction === 'down' ? ArrowDownRight : ArrowRight;
 
+  // Only a string can be measured; a custom node is the caller's problem.
+  const valueLength = typeof value === 'string' ? value.length : 0;
+
   const series = React.useMemo(
     () => (sparkline ?? []).map((point, index) => ({ index, value: point })),
     [sparkline],
@@ -78,7 +81,9 @@ export function StatCard({
   const body = (
     <>
       <div className="flex items-start justify-between gap-3">
-        <p className="text-sm font-medium text-muted-foreground">{label}</p>
+        <p className="min-w-0 flex-1 truncate text-sm font-medium text-muted-foreground" title={typeof label === 'string' ? label : undefined}>
+          {label}
+        </p>
         {Icon && (
           <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-lg', TONE_ICON[tone])}>
             <Icon className="size-5" aria-hidden="true" />
@@ -89,7 +94,23 @@ export function StatCard({
       {loading ? (
         <Skeleton className="mt-3 h-8 w-32" />
       ) : (
-        <p className="stat-value mt-2 text-foreground">{value}</p>
+        /*
+          Kwanza figures run long - "1 904 162,44 Kz" is fifteen characters
+          before the label even starts. A fixed type size overflows the tile, so
+          step the size down as the string grows rather than letting it spill.
+          The title attribute keeps the full value reachable either way.
+        */
+        <p
+          className={cn(
+            'stat-value mt-2 min-w-0 truncate text-foreground',
+            valueLength > 11 && 'text-xl',
+            valueLength > 17 && 'text-lg',
+            valueLength > 24 && 'text-base',
+          )}
+          title={typeof value === 'string' ? value : undefined}
+        >
+          {value}
+        </p>
       )}
 
       {(hasDelta || deltaHint) && !loading && (

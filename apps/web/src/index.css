@@ -174,8 +174,10 @@
     @apply rounded-xl border bg-card text-card-foreground shadow-sm;
   }
 
+  /* KPI figure. Starts smaller on narrow screens; StatCard steps it down
+     further for long currency strings so a tile can never be overflowed. */
   .stat-value {
-    @apply tabular text-2xl font-semibold tracking-tight;
+    @apply tabular text-xl font-semibold tracking-tight sm:text-2xl;
   }
 
   .focus-ring {

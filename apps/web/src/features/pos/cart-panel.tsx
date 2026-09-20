@@ -143,30 +143,38 @@ export function CartPanel({
 
       {/* Totals */}
       <div className="shrink-0 border-t border-border bg-muted/40 px-4 py-3">
-        <dl className="space-y-1.5 text-sm">
-          <div className="flex items-center justify-between">
-            <dt className="text-muted-foreground">{t('common.subtotal', 'Subtotal')}</dt>
-            <dd className="tabular font-medium text-foreground">{amount(totals.subtotalMinor)}</dd>
+        {/*
+          The tax breakdown grows by one row per distinct rate in the basket, so
+          a mixed basket can make this block taller than the space left over.
+          It scrolls internally instead of pushing down: everything below here -
+          the total and the Pagar button - must stay on screen no matter what
+          has been scanned.
+        */}
+        <dl className="max-h-24 space-y-1.5 overflow-y-auto overscroll-contain text-sm">
+          <div className="flex items-center justify-between gap-3">
+            <dt className="shrink-0 text-muted-foreground">{t('common.subtotal', 'Subtotal')}</dt>
+            <dd className="tabular truncate font-medium text-foreground">{amount(totals.subtotalMinor)}</dd>
           </div>
           {totals.discountMinor > 0 && (
-            <div className="flex items-center justify-between">
-              <dt className="text-muted-foreground">{t('common.discount', 'Desconto')}</dt>
-              <dd className="tabular font-medium text-success">- {amount(totals.discountMinor)}</dd>
+            <div className="flex items-center justify-between gap-3">
+              <dt className="shrink-0 text-muted-foreground">{t('common.discount', 'Desconto')}</dt>
+              <dd className="tabular truncate font-medium text-success">- {amount(totals.discountMinor)}</dd>
             </div>
           )}
           {totals.taxBreakdown.map((row) => (
-            <div key={row.rateBps} className="flex items-center justify-between">
-              <dt className="text-muted-foreground">IVA {percent(row.rateBps)}</dt>
-              <dd className="tabular font-medium text-foreground">{amount(row.taxMinor)}</dd>
+            <div key={row.rateBps} className="flex items-center justify-between gap-3">
+              <dt className="shrink-0 text-muted-foreground">IVA {percent(row.rateBps)}</dt>
+              <dd className="tabular truncate font-medium text-foreground">{amount(row.taxMinor)}</dd>
             </div>
           ))}
         </dl>
 
-        <div className="mt-3 flex items-end justify-between border-t border-border pt-3">
-          <span className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="mt-3 flex items-end justify-between gap-3 border-t border-border pt-3">
+          <span className="shrink-0 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
             {t('common.total', 'Total')}
           </span>
-          <span className="tabular text-3xl font-bold leading-none text-foreground">
+          {/* Kwanza totals run long; shrink the type rather than overflow the panel. */}
+          <span className="tabular min-w-0 truncate text-2xl font-bold leading-none text-foreground sm:text-3xl">
             {money(totals.totalMinor)}
           </span>
         </div>
@@ -175,7 +183,9 @@ export function CartPanel({
       {/* Actions */}
       <div className="safe-bottom shrink-0 border-t border-border px-4 py-3">
         <Button size="xl" block disabled={empty} onClick={onPay} leftIcon={<CreditCard />}>
-          {empty ? t('pos.pay', 'Pagar') : `${t('pos.pay', 'Pagar')} ${money(totals.totalMinor)}`}
+          <span className="min-w-0 truncate">
+            {empty ? t('pos.pay', 'Pagar') : `${t('pos.pay', 'Pagar')} ${money(totals.totalMinor)}`}
+          </span>
         </Button>
         <div className="mt-2 grid grid-cols-3 gap-2">
           <Button variant="outline" disabled={empty || !canHold} onClick={onHold} leftIcon={<PauseCircle />}>

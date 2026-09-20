@@ -1,0 +1,4 @@
+# Versioned migrations target PostgreSQL, which is what production runs.
+# Local development uses SQLite via `prisma db push` and does not read these.
+# See docs/sql/README.md.
+provider = "postgresql"

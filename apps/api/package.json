@@ -16,7 +16,8 @@
     "db:use-sqlite": "node ../../scripts/set-db-provider.mjs sqlite",
     "db:use-postgres": "node ../../scripts/set-db-provider.mjs postgresql",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "db:deploy": "prisma migrate deploy"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

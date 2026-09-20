@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
-import { permissionsForRole, type Permission, type Role } from '@pos/shared';
+import { effectivePermissions, type Permission, type Role } from '@pos/shared';
 import { verifyToken } from './auth.js';
 import { ApiError, asyncHandler } from './http.js';
 import { prisma } from './prisma.js';
@@ -56,6 +56,7 @@ export const requireAuth = asyncHandler(async (req: Request, _res: Response, nex
       role: true,
       entityId: true,
       locationId: true,
+      permissionOverrides: true,
     },
   });
 
@@ -69,7 +70,10 @@ export const requireAuth = asyncHandler(async (req: Request, _res: Response, nex
     role,
     entityId: user.entityId,
     locationId: user.locationId,
-    permissions: permissionsForRole(role),
+    // Recomputed from the CURRENT role and the member's own overrides on every
+    // request, so revoking access takes effect immediately rather than whenever
+    // the token happens to expire.
+    permissions: effectivePermissions(role, user.permissionOverrides),
   };
 
   // Tenant resolution. A super admin may act inside any entity by sending the
