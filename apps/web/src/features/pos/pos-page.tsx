@@ -15,7 +15,7 @@ import { useScanner } from '@/hooks/use-scanner';
 import { useOnlineStatus } from '@/hooks/use-socket';
 import { ApiRequestError, api } from '@/lib/api';
 import { useAuth } from '@/lib/auth-store';
-import { cacheCatalog, enqueueSale, findCachedByCode, queuedCount, startAutoSync } from '@/lib/offline';
+import { cacheCatalog, enqueueSale, findCachedByCode, queuedCount } from '@/lib/offline';
 import { qk } from '@/lib/query';
 import { beep, errorBeep, successChime, unlockAudio } from '@/lib/sound';
 import { CartPanel } from './cart-panel';
@@ -82,22 +82,12 @@ export default function PosPage() {
     return () => window.clearInterval(timer);
   }, [refreshQueued]);
 
-  useEffect(
-    () =>
-      startAutoSync((result) => {
-        if (result.synced.length > 0) {
-          toast.success(
-            'Vendas sincronizadas',
-            `${result.synced.length} venda(s) guardada(s) localmente foram enviadas.`,
-          );
-        }
-        if (result.blocked > 0) {
-          toast.error('Vendas por resolver', `${result.blocked} venda(s) foram recusadas pelo servidor.`);
-        }
-        refreshQueued();
-      }),
-    [refreshQueued],
-  );
+  /*
+    The replay loop belongs to PosShell, which outlives this screen.
+    startAutoSync is a singleton: a second caller gets a no-op stop function, so
+    if this page owned the loop, walking to Devolucoes would tear it down and
+    nothing would ever replay the queue again. Here we only watch the count.
+  */
 
   // The catalogue mirror is what keeps the register selling when the line drops.
   const catalogue = useQuery({
@@ -341,7 +331,13 @@ export default function PosPage() {
   /* ------------------------------------------------------------------ view  */
 
   return (
-    <div data-surface="pos" className="flex min-h-0 flex-1 flex-col overflow-hidden">
+    /*
+      h-full is load bearing: PosShell renders <main> as a plain block, so
+      flex-1 here resolves against nothing and the register would size to its
+      content instead of the viewport. The cart would then grow past the bottom
+      of an overflow-hidden parent and take the total and Pagar with it.
+    */
+    <div data-surface="pos" className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
       <div className="flex min-h-0 flex-1">
         <div className="flex min-h-0 flex-[1.62] flex-col">
           <CartPanel

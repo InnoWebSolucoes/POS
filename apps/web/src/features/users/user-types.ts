@@ -19,6 +19,11 @@ export interface UserRow {
   locale: Locale;
   active: boolean;
   pinEnabled: boolean;
+  /**
+   * True when this member has been tuned away from the role's defaults. Absent
+   * on an older server, which reads the same as "still on the preset".
+   */
+  hasCustomPermissions?: boolean;
   lastLoginAt: string | null;
   createdAt: string;
   updatedAt: string;

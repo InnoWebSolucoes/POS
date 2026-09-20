@@ -173,6 +173,12 @@ export interface HistoryApi<T> {
   begin: () => void;
   /** Close the gesture: the remembered value becomes an undo step. */
   end: () => void;
+  /**
+   * Applies a change the server has already committed to the whole timeline -
+   * past, present and future alike. A create or a delete is not undoable, so it
+   * must not be possible to step back to a moment before it happened.
+   */
+  rebase: (updater: (value: T) => T) => void;
   undo: () => void;
   redo: () => void;
   reset: (value: T) => void;
@@ -202,6 +208,14 @@ export function useHistory<T>(initial: T): HistoryApi<T> {
         future: [],
       };
     });
+  }, []);
+
+  const rebase = useCallback((updater: (value: T) => T) => {
+    setStack((current) => ({
+      past: current.past.map(updater),
+      present: updater(current.present),
+      future: current.future.map(updater),
+    }));
   }, []);
 
   const begin = useCallback(() => {
@@ -260,6 +274,7 @@ export function useHistory<T>(initial: T): HistoryApi<T> {
     commit,
     begin,
     end,
+    rebase,
     undo,
     redo,
     reset,

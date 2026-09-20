@@ -145,7 +145,7 @@ export function MenuPanel({
   return (
     <section className="flex min-h-0 min-w-0 flex-1 flex-col border-r border-border bg-background">
       <header className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-4 py-3">
-        <h1 className="mr-auto truncate text-lg font-semibold text-foreground">{serviceName}</h1>
+        <h1 className="mr-auto min-w-0 truncate text-lg font-semibold text-foreground">{serviceName}</h1>
 
         <Select value={String(course)} onValueChange={(value) => onCourseChange(Number(value))}>
           <SelectTrigger aria-label="Prato por omissao" className="h-11 w-[9.5rem]">

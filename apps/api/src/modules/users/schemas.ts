@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { LOCALES, ROLES } from '@pos/shared';
+import { LOCALES, PERMISSIONS, ROLES } from '@pos/shared';
 
 /**
  * Query strings arrive as strings (or not at all). Every optional filter treats
@@ -106,3 +106,18 @@ export const pinUsersQuerySchema = z.object({
     .max(64),
 });
 export type PinUsersQuery = z.infer<typeof pinUsersQuerySchema>;
+
+/**
+ * The permission editor posts the desired FINAL set, exactly as the checkboxes
+ * show it. The server works out the delta against the role - the client never
+ * has to reason about overrides.
+ */
+export const updatePermissionsSchema = z.object({
+  permissions: z
+    .array(z.enum(PERMISSIONS), {
+      required_error: 'Indique as permissoes.',
+      invalid_type_error: 'Indique as permissoes.',
+    })
+    .max(PERMISSIONS.length, 'Lista de permissoes invalida.'),
+});
+export type UpdatePermissionsInput = z.infer<typeof updatePermissionsSchema>;

@@ -31,6 +31,8 @@ import {
   toast,
 } from '@/components/ui';
 
+import { TourButton } from '@/features/onboarding';
+
 import { isPathActive, posMoreItems, posTabs, type NavItem, type NavVisibility, type PosTab } from './nav-config';
 
 /**
@@ -176,6 +178,8 @@ function PosTopBar({ queued }: { queued: number }) {
             <span className="sr-only sm:not-sr-only">por sincronizar</span>
           </StatusChip>
         )}
+
+        <TourButton compact />
 
         <span className="tabular text-sm font-semibold text-foreground">{formatTime(now)}</span>
       </div>

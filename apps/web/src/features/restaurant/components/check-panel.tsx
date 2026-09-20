@@ -169,6 +169,17 @@ export function CheckPanel({
         >
           Enviar{unsent.length > 0 ? ` (${unsent.length})` : ''}
         </Button>
+
+        {/*
+          A waiter has no restaurant:bill, so "Pagar" is greyed out for them.
+          Left unexplained that reads as a broken button, so say what to do
+          instead: the pre-bill is theirs to print, the payment is not.
+        */}
+        {!canBill && editable && (
+          <p className="text-center text-xs text-muted-foreground">
+            Sem permissao para receber pagamentos. Imprima a pre-conta e chame a caixa.
+          </p>
+        )}
       </footer>
     </aside>
   );

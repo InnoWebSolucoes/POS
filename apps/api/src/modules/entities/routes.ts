@@ -49,12 +49,14 @@ import {
   promoteAnotherDefault,
   uniqueSlug,
 } from './service.js';
+import { loadSetupState, seedStarterContent } from './starter-content.js';
 
 /** Actions the shared AUDIT_ACTIONS table does not carry. */
 const AUDIT_ENTITY_DELETE = 'entity.delete';
 const AUDIT_LOCATION_CREATE = 'location.create';
 const AUDIT_LOCATION_UPDATE = 'location.update';
 const AUDIT_LOCATION_DELETE = 'location.delete';
+const AUDIT_ENTITY_STARTER = 'entity.starter_content';
 
 /** Relation counts the admin list renders as tiles. */
 const COUNT_SELECT = {
@@ -566,6 +568,70 @@ router.get(
     }
 
     return res.json(stats);
+  }),
+);
+
+/* -------------------------------------------------------------------------- */
+/* Onboarding                                                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * GET /api/entities/:id/setup-state
+ *
+ * How far this client has got with their setup, in counts only. The console
+ * uses it to decide whether the starter catalogue is still on the table. There
+ * is deliberately no money and no sales figure in the answer.
+ */
+router.get(
+  '/:id/setup-state',
+  requireAuth,
+  requirePermission('entity:read'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const entityId = req.params.id;
+    assertEntityAccess(req, entityId);
+
+    const state = await loadSetupState(entityId);
+    return res.json(state);
+  }),
+);
+
+/**
+ * POST /api/entities/:id/starter-content
+ *
+ * Fills a brand new business with a small, sensible catalogue for its mode so
+ * the owner has something to tap on their first day. Refuses once the client
+ * has products of their own.
+ *
+ * Guarded by the permissions for what it actually writes, not by `entity:create`,
+ * which only the platform operator holds. Otherwise a business that signed itself
+ * up at /registar could never use this and would start on an empty screen, while
+ * an identical business the operator created starts ready to trade.
+ * `assertEntityAccess` still pins everyone but the operator to their own business.
+ */
+router.post(
+  '/:id/starter-content',
+  requireAuth,
+  requirePermission('product:write', 'category:write'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const entityId = req.params.id;
+    assertEntityAccess(req, entityId);
+    await loadEntity(entityId);
+
+    const auth = requireAuthContext(req);
+    const summary = await seedStarterContent(entityId, {
+      userId: auth.userId,
+      userName: auth.name,
+    });
+
+    await auditRequest(req, {
+      entityId,
+      action: AUDIT_ENTITY_STARTER,
+      targetType: 'entity',
+      targetId: entityId,
+      details: summary,
+    });
+
+    return res.status(201).json(summary);
   }),
 );
 

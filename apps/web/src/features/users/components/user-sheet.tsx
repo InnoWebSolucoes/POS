@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import { LOCALES, ROLE_LABELS, type Locale, type Role } from '@pos/shared';
 
 import {
@@ -31,7 +31,7 @@ import {
   type CreateUserBody,
 } from '../user-queries';
 import { emptyUserForm, userToForm, type UserFormValues, type UserRow } from '../user-types';
-import { RolePermissions } from './role-permissions';
+import { RoleSummary } from './role-summary';
 
 const LOCALE_LABELS: Record<Locale, string> = {
   'pt-PT': 'Portugues',
@@ -43,22 +43,28 @@ export interface UserSheetProps {
   onOpenChange: (open: boolean) => void;
   /** Null creates, a row edits. */
   user?: UserRow | null;
+  /** Offered right after a member is created, and from the edit form. */
+  onAdjustPermissions?: (user: UserRow) => void;
 }
 
 /** Create and edit share one form so the fields can never drift apart. */
-export function UserSheet({ open, onOpenChange, user }: UserSheetProps) {
+export function UserSheet({ open, onOpenChange, user, onAdjustPermissions }: UserSheetProps) {
   const editing = Boolean(user);
   const entityId = useAuth((s) => s.entity?.id);
+  const entityMode = useAuth((s) => s.entity?.mode);
 
   const [values, setValues] = React.useState<UserFormValues>(emptyUserForm);
   const [showPassword, setShowPassword] = React.useState(false);
   const [error, setError] = React.useState<ApiRequestError | null>(null);
+  /** Set once a member exists, so we can offer the permission editor at once. */
+  const [created, setCreated] = React.useState<UserRow | null>(null);
 
   React.useEffect(() => {
     if (!open) return;
     setValues(user ? userToForm(user) : emptyUserForm());
     setShowPassword(false);
     setError(null);
+    setCreated(null);
   }, [open, user]);
 
   const roles = useRoleOptions();
@@ -78,6 +84,15 @@ export function UserSheet({ open, onOpenChange, user }: UserSheetProps) {
       return;
     }
     toast.error('Nao foi possivel guardar', 'Tente novamente.');
+  };
+
+  /**
+   * Hand off to the permission editor. The close animation gets its moment
+   * first, so two overlays never fight over the focus trap.
+   */
+  const adjust = (target: UserRow) => {
+    onOpenChange(false);
+    window.setTimeout(() => onAdjustPermissions?.(target), 220);
   };
 
   const submit = (event: React.FormEvent) => {
@@ -131,7 +146,7 @@ export function UserSheet({ open, onOpenChange, user }: UserSheetProps) {
     create.mutate(body, {
       onSuccess: (saved) => {
         toast.success('Utilizador criado', `${saved.name} ja pode iniciar sessao.`);
-        onOpenChange(false);
+        setCreated(saved);
       },
       onError: handleError,
     });
@@ -143,14 +158,70 @@ export function UserSheet({ open, onOpenChange, user }: UserSheetProps) {
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" size="lg">
         <SheetHeader>
-          <SheetTitle>{editing ? 'Editar utilizador' : 'Novo utilizador'}</SheetTitle>
+          <SheetTitle>
+            {created ? 'Conta criada' : editing ? 'Editar utilizador' : 'Novo utilizador'}
+          </SheetTitle>
           <SheetDescription>
-            {editing
-              ? 'Altere os dados e o perfil de acesso deste colaborador.'
-              : 'Crie a conta de um colaborador e escolha o que ele pode fazer.'}
+            {created
+              ? 'Falta a parte importante: decidir o que esta pessoa pode ver.'
+              : editing
+                ? 'Altere os dados e o perfil de acesso deste colaborador.'
+                : 'Crie a conta de um colaborador e escolha o que ele pode fazer.'}
           </SheetDescription>
         </SheetHeader>
 
+        {created ? (
+          <>
+            <SheetBody>
+              <div className="flex flex-col gap-4">
+                <div className="flex items-start gap-3 rounded-xl border border-success/40 bg-success/10 p-4">
+                  <CheckCircle2 className="mt-0.5 size-6 shrink-0 text-success" aria-hidden="true" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-foreground">
+                      {created.name} ja pode iniciar sessao
+                    </p>
+                    <p className="mt-0.5 break-words text-sm text-muted-foreground">
+                      Entra com {created.email} e a palavra-passe que acabou de definir.
+                    </p>
+                  </div>
+                </div>
+
+                <RoleSummary role={created.role} mode={entityMode} />
+
+                <div className="rounded-xl border border-border p-4">
+                  <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <ShieldCheck className="size-5 text-muted-foreground" aria-hidden="true" />
+                    Quer limitar ainda mais?
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    O perfil e so o ponto de partida. Pode ligar e desligar cada permissao so para
+                    esta pessoa - esconder os precos de custo, tirar os relatorios, permitir
+                    devolucoes.
+                  </p>
+                </div>
+              </div>
+            </SheetBody>
+
+            <SheetFooter>
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                onClick={() => onOpenChange(false)}
+              >
+                Concluir
+              </Button>
+              <Button
+                type="button"
+                size="lg"
+                leftIcon={<ShieldCheck />}
+                onClick={() => adjust(created)}
+              >
+                Ajustar permissoes
+              </Button>
+            </SheetFooter>
+          </>
+        ) : (
         <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
           <SheetBody>
             <div className="flex flex-col gap-4">
@@ -244,22 +315,12 @@ export function UserSheet({ open, onOpenChange, user }: UserSheetProps) {
                 )}
               </div>
 
-              {/* What the manager is about to grant, spelled out. */}
-              <div className="rounded-xl border border-border bg-muted/40 p-4">
-                <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
-                  <ShieldCheck className="size-5 text-muted-foreground" aria-hidden="true" />
-                  {selectedRole ? `O perfil ${selectedRole.labelPt} permite` : 'Permissoes do perfil'}
-                </p>
-                {roles.isLoading ? (
-                  <p className="text-sm text-muted-foreground">A carregar...</p>
-                ) : roles.isError ? (
-                  <p className="text-sm text-muted-foreground">
-                    Nao foi possivel carregar as permissoes deste perfil.
-                  </p>
-                ) : (
-                  <RolePermissions permissions={selectedRole?.permissions ?? []} />
-                )}
-              </div>
+              {/* Choosing a role has to be a decision, not a guess. */}
+              <RoleSummary
+                role={values.role}
+                mode={entityMode}
+                permissions={selectedRole?.permissions}
+              />
 
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="user-location">Localizacao</Label>
@@ -331,15 +392,37 @@ export function UserSheet({ open, onOpenChange, user }: UserSheetProps) {
             </div>
           </SheetBody>
 
-          <SheetFooter>
-            <Button variant="outline" size="lg" onClick={() => onOpenChange(false)} disabled={saving}>
-              Cancelar
-            </Button>
-            <Button type="submit" size="lg" loading={saving}>
-              {editing ? 'Guardar' : 'Criar utilizador'}
-            </Button>
+          <SheetFooter className={editing ? 'sm:justify-between' : undefined}>
+            {editing && user && (
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                leftIcon={<ShieldCheck />}
+                disabled={saving}
+                onClick={() => adjust(user)}
+              >
+                Permissoes
+              </Button>
+            )}
+
+            <div className="flex flex-col-reverse gap-2 sm:flex-row">
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                onClick={() => onOpenChange(false)}
+                disabled={saving}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" size="lg" loading={saving}>
+                {editing ? 'Guardar' : 'Criar utilizador'}
+              </Button>
+            </div>
           </SheetFooter>
         </form>
+        )}
       </SheetContent>
     </Sheet>
   );

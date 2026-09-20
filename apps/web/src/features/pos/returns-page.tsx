@@ -136,7 +136,9 @@ export default function ReturnsPage() {
   /* ------------------------------------------------------------------ view */
 
   return (
-    <div data-surface="pos" className="flex min-h-0 flex-1 flex-col overflow-hidden">
+    /* h-full: PosShell's <main> is a block, so flex-1 alone leaves this page
+       sized by its content and the Devolver footer falls off the screen. */
+    <div data-surface="pos" className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
       <header className="flex shrink-0 items-center gap-3 border-b border-border bg-card px-4 py-3">
         <Button variant="ghost" size="icon" asChild aria-label="Voltar a caixa">
           <Link to="/pos">

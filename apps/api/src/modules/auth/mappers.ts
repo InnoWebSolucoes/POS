@@ -2,7 +2,7 @@ import {
   ENTITY_MODES,
   LOCALES,
   ROLES,
-  permissionsForRole,
+  effectivePermissions,
   type AuthUser,
   type CostingMethod,
   type EntityDto,
@@ -26,6 +26,8 @@ export interface AuthUserRow {
   locale: string;
   avatarUrl: string | null;
   pinHash: string | null;
+  /** The member's own tuning on top of the role preset, as stored JSON. */
+  permissionOverrides: string;
 }
 
 export interface EntityRow {
@@ -59,6 +61,7 @@ export const AUTH_USER_SELECT = {
   locale: true,
   avatarUrl: true,
   pinHash: true,
+  permissionOverrides: true,
 } as const;
 
 export const ENTITY_SELECT = {
@@ -121,7 +124,12 @@ export function toAuthUser(user: AuthUserRow): AuthUser {
     locationId: user.locationId,
     locale: toLocale(user.locale),
     avatarUrl: user.avatarUrl,
-    permissions: permissionsForRole(role),
+    // The role's preset PLUS this member's own tuning. Using the bare role here
+    // would quietly break both directions of the permission editor: a revoked
+    // permission would still draw its menu entry and then fail at the API, and a
+    // granted one would never draw a way in at all, so the owner would hand
+    // somebody access they could not actually reach.
+    permissions: effectivePermissions(role, user.permissionOverrides),
     pinEnabled: user.pinHash != null,
   };
 }

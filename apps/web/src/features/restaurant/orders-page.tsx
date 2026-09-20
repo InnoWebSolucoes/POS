@@ -158,7 +158,7 @@ export default function RestaurantOrdersPage() {
 
   if (ordersQuery.isError) {
     return (
-      <div className="flex min-h-0 flex-1 items-center justify-center p-6">
+      <div className="flex h-full min-h-0 flex-1 items-center justify-center p-6">
         <EmptyState
           title="Nao foi possivel carregar os pedidos"
           description={apiMessage(ordersQuery.error)}
@@ -169,7 +169,7 @@ export default function RestaurantOrdersPage() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
       <header className="shrink-0 border-b border-border bg-card px-4 py-3">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="mr-auto text-lg font-semibold text-foreground">Pedidos em aberto</h1>

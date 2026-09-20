@@ -68,6 +68,8 @@ import {
   UserAvatar,
 } from '@/components/ui';
 
+import { SetupChecklist, TourButton } from '@/features/onboarding';
+
 import {
   MODE_LABELS,
   isNavItemActive,
@@ -734,6 +736,8 @@ function TopBar({
           <Search />
         </Button>
 
+        <TourButton />
+
         <NotificationsBell />
         <LanguageToggle />
         <ThemeToggle />
@@ -810,6 +814,7 @@ export default function AppShell() {
 
           <main className="min-h-0 flex-1 overflow-y-auto">
             <div className="mx-auto w-full max-w-[110rem] px-4 py-6 lg:px-8">
+              <SetupChecklist className="mb-6" />
               <Outlet />
             </div>
           </main>

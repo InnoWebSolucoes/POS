@@ -83,16 +83,33 @@ export function PayDialog({
   const remaining = Math.max(0, dueMinor - paidMinor);
   const liveItems = useMemo(() => order.items.filter(isLiveItem), [order.items]);
 
+  /*
+   * `method` is seeded before the entity's settings land, so the stored value
+   * can be one this business has switched off. Fall back to the first method it
+   * does accept rather than posting a payment the server will refuse.
+   */
+  const activeMethod = paymentMethods.includes(method) ? method : paymentMethods[0] ?? 'cash';
+
   const reset = () => {
     setTenders([]);
     setSplit(null);
     setEntry(0);
   };
 
-  const addTender = (value: number, forMethod: PaymentMethod = method) => {
+  const addTender = (value: number, forMethod: PaymentMethod = activeMethod) => {
     const applied = Math.min(Math.max(0, Math.round(value)), remaining);
     if (applied <= 0) return;
-    setTenders((current) => [...current, { method: forMethod, amountMinor: applied }]);
+    // Cash handed over above what is owed is change, not a bigger payment. It
+    // has to travel with the tender or the receipt shows no troco at all.
+    const tendered = Math.max(0, Math.round(value));
+    setTenders((current) => [
+      ...current,
+      {
+        method: forMethod,
+        amountMinor: applied,
+        ...(forMethod === 'cash' && tendered > applied ? { tenderedMinor: tendered } : {}),
+      },
+    ]);
     setEntry(0);
   };
 
@@ -121,7 +138,9 @@ export function PayDialog({
 
   const finish = async () => {
     const finalTenders: Tender[] =
-      tenders.length > 0 ? tenders : [{ method, amountMinor: dueMinor, tenderedMinor: entry || undefined }];
+      tenders.length > 0
+        ? tenders
+        : [{ method: activeMethod, amountMinor: dueMinor, tenderedMinor: entry || undefined }];
 
     const total = finalTenders.reduce((sum, tender) => sum + tender.amountMinor, 0);
     if (total !== dueMinor) {
@@ -284,7 +303,7 @@ export function PayDialog({
                   {paymentMethods.map((value) => (
                     <Button
                       key={value}
-                      variant={method === value ? 'default' : 'outline'}
+                      variant={activeMethod === value ? 'default' : 'outline'}
                       onClick={() => setMethod(value)}
                     >
                       {PAYMENT_METHOD_LABELS[value].pt}
@@ -296,7 +315,7 @@ export function PayDialog({
               <section className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label htmlFor="valor-recebido">
-                    {method === 'cash' ? 'Valor recebido' : 'Valor'}
+                    {activeMethod === 'cash' ? 'Valor recebido' : 'Valor'}
                   </Label>
                   <MoneyInput
                     id="valor-recebido"
@@ -305,7 +324,7 @@ export function PayDialog({
                     min={0}
                     onChange={setEntry}
                   />
-                  {method === 'cash' && entry > remaining && remaining > 0 && (
+                  {activeMethod === 'cash' && entry > remaining && remaining > 0 && (
                     <p className="tabular text-sm text-success">Troco {money(entry - remaining)}</p>
                   )}
                 </div>

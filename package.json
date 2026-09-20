@@ -27,6 +27,7 @@
     "icons": "node scripts/generate-icons.mjs",
     "db:sql": "node scripts/generate-sql.mjs",
     "db:deploy": "npm run db:deploy -w @pos/api",
+    "test:permissions": "node scripts/test-permissions.mjs",
     "test:create": "node scripts/test-create-flows.mjs"
   },
   "devDependencies": {

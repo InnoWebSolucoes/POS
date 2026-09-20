@@ -139,7 +139,11 @@ The catalogue is mirrored into IndexedDB for lookups, and completed sales are qu
 | `npm run db:seed` | Demo data |
 | `npm run db:reset` | Drop, recreate, reseed |
 | `npm run db:studio` | Prisma Studio |
-| `npm test` | API tests |
+| `npm run db:sql` | Regenerate the SQL in `docs/sql/` from the schema |
+| `npm test` | Unit tests for money and barcodes |
+| `npm run smoke` | End-to-end checks against a running API |
+| `npm run test:create` | Every "add" flow in the product, one after another |
+| `npm run test:permissions` | Per-member permissions, and the ways round them |
 
 ---
 

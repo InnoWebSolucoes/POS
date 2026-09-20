@@ -86,6 +86,7 @@ export function useFloorEditor(): FloorEditor {
     commit: commitTables,
     begin: beginEdit,
     end: endEdit,
+    rebase: rebaseTables,
     undo,
     redo,
     reset: resetTables,
@@ -172,11 +173,15 @@ export function useFloorEditor(): FloorEditor {
   const createMutation = useMutation({
     mutationFn: (body: Omit<LayoutRow, 'id'>) => api.post<RestaurantTableDto>('/api/restaurant/tables', body),
     onSuccess: (created) => {
-      // The table already exists on the server, so it is not an undo step.
+      // The table already exists on the server, so it is not an undo step - and
+      // it has to be written into every step of the timeline, or one Ctrl+Z
+      // would drop a table off the plan that the server still has.
       const table = toEditorTable(created);
       baseline.current = new Map(baseline.current).set(table.id, table);
       setBaselineVersion((value) => value + 1);
-      setTables((current) => [...current, table]);
+      rebaseTables((current) =>
+        current.some((entry) => entry.id === table.id) ? current : [...current, table],
+      );
       setSelectedId(table.id);
       invalidate();
     },
@@ -189,11 +194,13 @@ export function useFloorEditor(): FloorEditor {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/api/restaurant/tables/${id}`),
     onSuccess: (_result, id) => {
+      // Same reasoning as create: the row is gone from the server, so undo must
+      // not be able to resurrect it and offer it back to /tables/layout.
       const next = new Map(baseline.current);
       next.delete(id);
       baseline.current = next;
       setBaselineVersion((value) => value + 1);
-      setTables((current) => current.filter((table) => table.id !== id));
+      rebaseTables((current) => current.filter((table) => table.id !== id));
       setSelectedId(null);
       invalidate();
     },

@@ -6,6 +6,7 @@ import {
   Pencil,
   Plus,
   RotateCcw,
+  ShieldCheck,
   UserCheck,
   UserCog,
   UserX,
@@ -46,6 +47,7 @@ import {
   type UserRow,
 } from './user-types';
 import { UserSheet } from './components/user-sheet';
+import { PermissionSheet } from './components/permission-sheet';
 import { PinDialog, ResetPasswordDialog, ToggleActiveDialog } from './components/user-actions';
 
 /** Column keys that double as the API's `sort` values. */
@@ -78,6 +80,8 @@ export default function UsersPage() {
   const [editing, setEditing] = React.useState<UserRow | null>(null);
   const [target, setTarget] = React.useState<UserRow | null>(null);
   const [dialog, setDialog] = React.useState<DialogKind>(null);
+  const [permissionsFor, setPermissionsFor] = React.useState<UserRow | null>(null);
+  const [permissionsOpen, setPermissionsOpen] = React.useState(false);
 
   const list = useUserList(params);
   const locations = useLocations(entityId);
@@ -101,6 +105,12 @@ export default function UsersPage() {
   const openDialog = (user: UserRow, kind: Exclude<DialogKind, null>) => {
     setTarget(user);
     setDialog(kind);
+  };
+
+  /** The permission editor: what THIS person may see, role notwithstanding. */
+  const openPermissions = (user: UserRow) => {
+    setPermissionsFor(user);
+    setPermissionsOpen(true);
   };
 
   const sort: DataTableSort | null = SORTABLE[params.sort]
@@ -140,6 +150,19 @@ export default function UsersPage() {
       sortable: true,
       width: '12rem',
       cell: (row) => <Badge variant={ROLE_VARIANTS[row.role]}>{ROLE_LABELS[row.role].pt}</Badge>,
+    },
+    {
+      key: 'permissions',
+      header: 'Permissoes',
+      width: '11rem',
+      headClassName: 'hidden sm:table-cell',
+      className: 'hidden sm:table-cell',
+      cell: (row) =>
+        row.hasCustomPermissions ? (
+          <Badge variant="warning">Personalizado</Badge>
+        ) : (
+          <Badge variant="muted">Padrao do perfil</Badge>
+        ),
     },
     {
       key: 'locationName',
@@ -211,6 +234,10 @@ export default function UsersPage() {
               <Pencil />
               Editar
             </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => openPermissions(row)}>
+              <ShieldCheck />
+              Permissoes
+            </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => openDialog(row, 'password')}>
               <RotateCcw />
               Repor palavra-passe
@@ -244,7 +271,7 @@ export default function UsersPage() {
     <div className="flex flex-col gap-5 p-4 sm:p-6">
       <PageHeader
         title="Utilizadores"
-        description="Quem trabalha neste negocio e o que cada um pode fazer."
+        description="Quem trabalha neste negocio e o que cada um pode ver. O perfil define o ponto de partida - as permissoes de cada pessoa podem ser afinadas uma a uma."
         actions={
           canWrite ? (
             <Button size="lg" leftIcon={<Plus />} onClick={openCreate}>
@@ -364,7 +391,18 @@ export default function UsersPage() {
         )}
       </div>
 
-      <UserSheet open={sheetOpen} onOpenChange={setSheetOpen} user={editing} />
+      <UserSheet
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        user={editing}
+        onAdjustPermissions={openPermissions}
+      />
+
+      <PermissionSheet
+        open={permissionsOpen}
+        onOpenChange={setPermissionsOpen}
+        user={permissionsFor}
+      />
 
       <ResetPasswordDialog
         user={target}

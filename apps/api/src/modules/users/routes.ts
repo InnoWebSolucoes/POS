@@ -1,6 +1,14 @@
 import { Router, type Request, type Response } from 'express';
 import type { Prisma } from '@prisma/client';
-import { ROLE_LABELS, ROLES, permissionsForRole, type Role } from '@pos/shared';
+import {
+  EMPTY_OVERRIDES,
+  ROLE_LABELS,
+  ROLES,
+  effectivePermissions,
+  permissionsForRole,
+  type Permission,
+  type Role,
+} from '@pos/shared';
 
 import { hashPassword, hashPin } from '../../lib/auth.js';
 import { AUDIT_ACTIONS, auditRequest } from '../../lib/audit.js';
@@ -22,32 +30,48 @@ import {
 } from '../../lib/middleware.js';
 import { prisma, TX_OPTIONS } from '../../lib/prisma.js';
 
-import { toUserDto, type PinUserDto, type RoleOptionDto, type UserDto } from './mappers.js';
+import {
+  buildPermissionCatalogue,
+  toUserDto,
+  type PermissionCatalogueDto,
+  type PinUserDto,
+  type RoleOptionDto,
+  type UserDto,
+  type UserPermissionsDto,
+} from './mappers.js';
 import {
   createUserSchema,
   listUsersQuerySchema,
   pinUsersQuerySchema,
   resetPasswordSchema,
   setPinSchema,
+  updatePermissionsSchema,
   updateUserSchema,
   type CreateUserInput,
   type ListUsersQuery,
   type PinUsersQuery,
   type ResetPasswordInput,
   type SetPinInput,
+  type UpdatePermissionsInput,
   type UpdateUserInput,
 } from './schemas.js';
 import {
+  applyPermissionChange,
   assertCanAssignRole,
   assertCanManage,
   assertEmailAvailable,
+  assertEntityKeepsAUserManager,
   assertLocationInEntity,
   assertNotLastEntityAdmin,
   assertPinAvailable,
   findUserInEntity,
   listUsers,
+  permissionStateOf,
   revokeSessions,
+  sortPermissions,
   USER_SELECT,
+  type PermissionActor,
+  type PermissionChangePlan,
 } from './service.js';
 
 const router = Router();
@@ -111,6 +135,146 @@ router.get(
 );
 
 /* -------------------------------------------------------------------------- */
+/* Per-member permissions                                                      */
+/* -------------------------------------------------------------------------- */
+
+/** Audit actions for the tuning, kept out of the generic user.update bucket. */
+const PERMISSION_AUDIT = {
+  UPDATE: 'user.permissions_update',
+  RESET: 'user.permissions_reset',
+} as const;
+
+function actorOf(auth: { userId: string; role: Role; permissions: Permission[] }): PermissionActor {
+  return { userId: auth.userId, role: auth.role, permissions: auth.permissions };
+}
+
+function toPermissionsDto(
+  row: { id: string; name: string; role: string; permissionOverrides: string },
+  caller: { permissions: Permission[] },
+): UserPermissionsDto {
+  const state = permissionStateOf(row);
+  return {
+    userId: row.id,
+    name: row.name,
+    role: state.role,
+    roleLabelPt: ROLE_LABELS[state.role].pt,
+    roleLabelEn: ROLE_LABELS[state.role].en,
+    roleDefaults: state.roleDefaults,
+    effective: state.effective,
+    overrides: state.overrides,
+    hasOverrides: state.custom,
+    // You may only hand out access you hold yourself, so the editor greys out
+    // everything outside this list rather than letting the save fail.
+    editableByCaller: sortPermissions(caller.permissions),
+  };
+}
+
+/** The before/after the audit log keeps for a permission change. */
+function auditDetails(plan: PermissionChangePlan) {
+  return {
+    role: plan.role,
+    before: { granted: plan.before.granted, revoked: plan.before.revoked },
+    after: { granted: plan.after.granted, revoked: plan.after.revoked },
+    added: plan.added,
+    removed: plan.removed,
+    permissionCount: plan.afterEffective.length,
+  };
+}
+
+/**
+ * GET /api/users/permission-catalogue
+ * Declared before /:id so it is not swallowed by it. This is what the editor
+ * renders: the groups, one plain sentence per toggle in both languages, and
+ * every role preset so it can show "padrao do perfil" beside each one.
+ */
+router.get(
+  '/permission-catalogue',
+  requireAuth,
+  requirePermission('user:read'),
+  asyncHandler(async (_req: Request, res: Response) => {
+    const catalogue: PermissionCatalogueDto = buildPermissionCatalogue();
+    res.json(catalogue);
+  }),
+);
+
+/** GET /api/users/:id/permissions - what this member may do, and why. */
+router.get(
+  '/:id/permissions',
+  requireAuth,
+  requirePermission('user:read'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const auth = requireAuthContext(req);
+    const entityId = requireEntity(req);
+    const user = await findUserInEntity(entityId, req.params.id);
+    res.json(toPermissionsDto(user, auth));
+  }),
+);
+
+/**
+ * PUT /api/users/:id/permissions
+ * The body is the desired FINAL set, exactly as the checkboxes show it. What
+ * gets stored is only the difference against the role, so a later change to
+ * what "cashier" means still reaches everyone who was never hand-tuned.
+ */
+router.put(
+  '/:id/permissions',
+  requireAuth,
+  requirePermission('user:write'),
+  validateBody(updatePermissionsSchema),
+  asyncHandler(async (req: Request, res: Response) => {
+    const auth = requireAuthContext(req);
+    const entityId = requireEntity(req);
+    const body = req.body as UpdatePermissionsInput;
+
+    const { plan, user } = await applyPermissionChange({
+      actor: actorOf(auth),
+      entityId,
+      targetId: req.params.id,
+      desired: body.permissions,
+    });
+
+    if (plan.changed) {
+      await auditRequest(req, {
+        action: PERMISSION_AUDIT.UPDATE,
+        targetType: 'user',
+        targetId: user.id,
+        details: { name: user.name, ...auditDetails(plan) },
+      });
+    }
+
+    res.json(toPermissionsDto(user, auth));
+  }),
+);
+
+/** POST /api/users/:id/permissions/reset - back to the role's defaults. */
+router.post(
+  '/:id/permissions/reset',
+  requireAuth,
+  requirePermission('user:write'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const auth = requireAuthContext(req);
+    const entityId = requireEntity(req);
+
+    const { plan, user } = await applyPermissionChange({
+      actor: actorOf(auth),
+      entityId,
+      targetId: req.params.id,
+    });
+
+    if (plan.changed) {
+      await auditRequest(req, {
+        action: PERMISSION_AUDIT.RESET,
+        targetType: 'user',
+        targetId: user.id,
+        details: { name: user.name, ...auditDetails(plan) },
+      });
+    }
+
+    res.json(toPermissionsDto(user, auth));
+  }),
+);
+
+/* -------------------------------------------------------------------------- */
 /* Staff CRUD                                                                  */
 /* -------------------------------------------------------------------------- */
 
@@ -141,7 +305,7 @@ router.post(
     const entityId = requireEntity(req);
     const body = req.body as CreateUserInput;
 
-    assertCanAssignRole(auth.role, body.role);
+    assertCanAssignRole(auth, body.role);
     await assertEmailAvailable(body.email);
     await assertLocationInEntity(entityId, body.locationId);
     if (body.pin) await assertPinAvailable(entityId, body.pin);
@@ -203,7 +367,7 @@ router.patch(
     const body = req.body as UpdateUserInput;
     const target = await findUserInEntity(entityId, req.params.id);
 
-    assertCanManage(auth.role, target);
+    assertCanManage(auth, target);
 
     const isSelf = target.id === auth.userId;
     if (isSelf && body.role !== undefined && body.role !== target.role) {
@@ -212,7 +376,7 @@ router.patch(
     if (isSelf && body.active === false) {
       throw ApiError.forbidden('Nao pode desactivar a sua propria conta.');
     }
-    if (body.role !== undefined) assertCanAssignRole(auth.role, body.role);
+    if (body.role !== undefined) assertCanAssignRole(auth, body.role);
 
     const losingAdmin =
       target.role === 'entity_admin' &&
@@ -231,7 +395,20 @@ router.patch(
     }
     if (body.locationId) await assertLocationInEntity(entityId, body.locationId);
 
+    // A role is a preset, and the overrides are a delta against THAT preset.
+    // Carrying them into a different job would silently hand over access the new
+    // role never had - so changing somebody's role puts them back on defaults.
+    const roleChanged = body.role !== undefined && body.role !== target.role;
+    if (roleChanged && body.role) {
+      const before = effectivePermissions(target.role as Role, target.permissionOverrides);
+      const after = effectivePermissions(body.role, EMPTY_OVERRIDES);
+      if (before.includes('user:write') && !after.includes('user:write')) {
+        await assertEntityKeepsAUserManager(entityId, target.id);
+      }
+    }
+
     const data: Prisma.UserUncheckedUpdateInput = {};
+    if (roleChanged) data.permissionOverrides = '{}';
     if (body.name !== undefined) data.name = body.name;
     if (body.email !== undefined) data.email = body.email;
     if (body.role !== undefined) data.role = body.role;
@@ -258,7 +435,7 @@ router.patch(
       action: AUDIT_ACTIONS.USER_UPDATE,
       targetType: 'user',
       targetId: target.id,
-      details: { changes: data, deactivated: deactivating },
+      details: { changes: data, deactivated: deactivating, permissionsReset: roleChanged },
     });
 
     res.json(toUserDto(updated));
@@ -281,7 +458,7 @@ router.post(
     const body = req.body as ResetPasswordInput;
     const target = await findUserInEntity(entityId, req.params.id);
 
-    assertCanManage(auth.role, target);
+    assertCanManage(auth, target);
 
     const passwordHash = await hashPassword(body.password);
 
@@ -317,7 +494,7 @@ router.post(
     const body = req.body as SetPinInput;
     const target = await findUserInEntity(entityId, req.params.id);
 
-    assertCanManage(auth.role, target);
+    assertCanManage(auth, target);
     if (body.pin) await assertPinAvailable(entityId, body.pin, target.id);
 
     const updated = await prisma.user.update({
@@ -350,7 +527,7 @@ router.delete(
     if (target.id === auth.userId) {
       throw ApiError.forbidden('Nao pode remover a sua propria conta.');
     }
-    assertCanManage(auth.role, target);
+    assertCanManage(auth, target);
 
     if (target.role === 'entity_admin' && target.active) {
       await assertNotLastEntityAdmin(

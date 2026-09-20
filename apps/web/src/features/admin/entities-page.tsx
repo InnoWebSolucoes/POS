@@ -11,6 +11,7 @@ import {
   Plus,
   Power,
   ShieldAlert,
+  Sparkles,
   Users,
 } from 'lucide-react';
 import { ENTITY_MODES, type EntityDto, type EntityMode } from '@pos/shared';
@@ -53,6 +54,7 @@ import {
 } from './platform-types';
 import { EntityWizard } from './components/entity-wizard';
 import { EntityEditor } from './components/entity-editor';
+import { StarterContentDialog } from './components/starter-content-dialog';
 import { SupportAccessDialog } from './components/support-access-dialog';
 import { SystemHealthPanel } from './components/system-health-panel';
 
@@ -112,6 +114,7 @@ function PlatformConsole() {
   const [createOpen, setCreateOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<EntityDto | null>(null);
   const [supportTarget, setSupportTarget] = React.useState<EntityDto | null>(null);
+  const [starterTarget, setStarterTarget] = React.useState<EntityDto | null>(null);
   const [toToggle, setToToggle] = React.useState<EntityDto | null>(null);
   const [entering, setEntering] = React.useState<string | null>(null);
 
@@ -200,7 +203,7 @@ function PlatformConsole() {
       { id: entity.id, active: !entity.active },
       {
         onSuccess: () =>
-          toast.success(entity.active ? 'Negocio desactivado' : 'Negocio reactivado', entity.name),
+          toast.success(entity.active ? 'Negocio suspenso' : 'Negocio reactivado', entity.name),
         onError: (cause) => {
           const message = cause instanceof ApiRequestError ? cause.message : 'Tente novamente.';
           toast.error('Nao foi possivel alterar o estado', message);
@@ -305,12 +308,16 @@ function PlatformConsole() {
                 <Pencil />
                 Editar
               </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setStarterTarget(row)}>
+                <Sparkles />
+                Catalogo de exemplo
+              </DropdownMenuItem>
               <DropdownMenuItem
                 variant={row.active ? 'destructive' : 'default'}
                 onSelect={() => setToToggle(row)}
               >
                 <Power />
-                {row.active ? 'Desactivar' : 'Reactivar'}
+                {row.active ? 'Suspender' : 'Reactivar'}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -341,7 +348,7 @@ function PlatformConsole() {
         }
         actions={
           <Button size="lg" leftIcon={<Plus />} onClick={() => setCreateOpen(true)}>
-            Novo negocio
+            Novo cliente
           </Button>
         }
       />
@@ -487,7 +494,7 @@ function PlatformConsole() {
                   : 'Ainda nao ha clientes nesta plataforma.'
               }
               emptyAction={
-                filtered ? undefined : { label: 'Novo negocio', onClick: () => setCreateOpen(true) }
+                filtered ? undefined : { label: 'Novo cliente', onClick: () => setCreateOpen(true) }
               }
             />
 
@@ -516,12 +523,18 @@ function PlatformConsole() {
           void list.refetch();
           void summary.refetch();
         }}
+        onEnterEntity={(entity) => enterEntity(entity)}
       />
 
       <EntityEditor
         entity={editing}
         onOpenChange={(open) => !open && setEditing(null)}
         onSaved={() => setEditing(null)}
+      />
+
+      <StarterContentDialog
+        entity={starterTarget}
+        onOpenChange={(open) => !open && setStarterTarget(null)}
       />
 
       <SupportAccessDialog
@@ -533,13 +546,13 @@ function PlatformConsole() {
       <ConfirmDialog
         open={toToggle !== null}
         onOpenChange={(open) => !open && setToToggle(null)}
-        title={toToggle?.active ? `Desactivar ${toToggle.name}?` : `Reactivar ${toToggle?.name}?`}
+        title={toToggle?.active ? `Suspender ${toToggle.name}?` : `Reactivar ${toToggle?.name}?`}
         description={
           toToggle?.active
-            ? 'Ninguem deste negocio consegue iniciar sessao enquanto estiver inactivo. Os dados mantem-se intactos e pode reactiva-lo a qualquer momento.'
-            : 'O negocio volta a ficar acessivel aos seus utilizadores.'
+            ? 'Ninguem deste negocio consegue iniciar sessao enquanto estiver suspenso - nem o dono, nem a equipa, nem a caixa que esta aberta neste momento. Os dados mantem-se intactos e pode reactiva-lo a qualquer momento.'
+            : 'O negocio volta a ficar acessivel a toda a equipa, com os mesmos dados de entrada de antes.'
         }
-        confirmLabel={toToggle?.active ? 'Desactivar' : 'Reactivar'}
+        confirmLabel={toToggle?.active ? 'Suspender' : 'Reactivar'}
         variant={toToggle?.active ? 'destructive' : 'success'}
         onConfirm={confirmToggle}
       />
