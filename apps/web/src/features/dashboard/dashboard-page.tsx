@@ -173,7 +173,14 @@ function KpiRow({
   const hint = 'vs. periodo anterior';
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+    /*
+      Three across, never six. At 2xl a sixth of the row leaves a tile 141px of
+      text, and StatCard renders a fifteen-character Kwanza figure at 20px
+      monospace - about 180px - so it truncated the very number this row exists
+      to show. Three columns give 253px at xl and 341px at 2xl; six KPIs read as
+      two rows of three, which is also a calmer shape to scan.
+    */
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       <StatCard
         label="Receita"
         value={money(summary?.revenueMinor ?? 0)}

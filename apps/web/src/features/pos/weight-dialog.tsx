@@ -102,8 +102,12 @@ export function WeightDialog({ product, onOpenChange, onConfirm }: WeightDialogP
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {t('common.cancel', 'Cancelar')}
           </Button>
-          <Button size="lg" disabled={!valid} onClick={confirm}>
-            {t('common.add', 'Adicionar')} {valid ? money(totalMinor) : ''}
+          {/* A mis-keyed weight makes this total enormous; let the label shrink
+              rather than push the button out of the dialog. */}
+          <Button size="lg" className="min-w-0" disabled={!valid} onClick={confirm}>
+            <span className="min-w-0 truncate">
+              {valid ? `${t('common.add', 'Adicionar')} ${money(totalMinor)}` : t('common.add', 'Adicionar')}
+            </span>
           </Button>
         </DialogFooter>
       </DialogContent>

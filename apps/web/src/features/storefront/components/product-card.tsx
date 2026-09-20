@@ -75,29 +75,38 @@ export function ProductCard({ product, slug, inStock, onAdd, adding = false }: P
 
         <p className="tabular mt-auto text-base font-bold">{money(product.priceMinor)}</p>
 
+        {/*
+         * Short labels on purpose: a tile is about 150px wide on a phone and
+         * every Button is whitespace-nowrap, so "Adicionar ao Carrinho" spilled
+         * out of a card that clips its overflow and came out chopped at both
+         * ends. The full sentence lives on aria-label, and truncate is the
+         * backstop for a translation longer than this one.
+         */}
         {hasVariants ? (
           inStock ? (
-            <Button asChild variant="outline" block size="sm">
-              <Link to={to}>
+            <Button asChild variant="outline" block size="sm" className="px-2">
+              <Link to={to} aria-label={`Ver opcoes de ${product.namePt}`}>
                 <SlidersHorizontal />
-                Escolher opcoes
+                <span className="min-w-0 truncate">Ver opcoes</span>
               </Link>
             </Button>
           ) : (
-            <Button variant="outline" block size="sm" disabled>
-              {t('store.outOfStock')}
+            <Button variant="outline" block size="sm" className="px-2" disabled>
+              <span className="min-w-0 truncate">{t('store.outOfStock')}</span>
             </Button>
           )
         ) : (
           <Button
             block
             size="sm"
+            className="px-2"
             disabled={!inStock}
             loading={adding}
+            aria-label={`${t('store.addToCart')}: ${product.namePt}`}
             onClick={() => onAdd(product)}
           >
             <Plus />
-            {t('store.addToCart')}
+            <span className="min-w-0 truncate">{inStock ? 'Adicionar' : t('store.outOfStock')}</span>
           </Button>
         )}
       </div>

@@ -50,6 +50,12 @@ export function StockTakeReview({ stockTake, approving, onApprove, onBackToCount
   const totalValueMinor = variances.reduce((sum, line) => sum + (line.varianceValueMinor ?? 0), 0);
   const uncounted = stockTake.lineCount - stockTake.countedCount;
   const approved = stockTake.status === 'approved';
+  // A cancelled sheet lands on this screen too (the list routes both terminal
+  // statuses here). The API answers 409 "Este inventario foi cancelado." to
+  // both approve and any further line edit, so offering "Aprovar" or "Voltar a
+  // contagem" would be two buttons that cannot succeed.
+  const cancelled = stockTake.status === 'cancelled';
+  const closed = approved || cancelled;
 
   const columns: Array<DataTableColumn<StockTakeLineDto>> = [
     {
@@ -120,7 +126,9 @@ export function StockTakeReview({ stockTake, approving, onApprove, onBackToCount
 
   return (
     <div className="flex flex-col gap-4">
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {/* Four columns only from 2xl: at xl a tile is ~176px wide inside, and a
+          Kwanza variance needs ~180px, so StatCard would ellipsise the figure. */}
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-4">
         <StatCard label="Artigos contados" value={`${formatNumber(stockTake.countedCount)} / ${formatNumber(stockTake.lineCount)}`} icon={ClipboardCheck} />
         <StatCard label="Linhas com diferenca" value={formatNumber(variances.length)} icon={AlertTriangle} tone={variances.length ? 'warning' : 'default'} />
         <StatCard
@@ -137,7 +145,7 @@ export function StockTakeReview({ stockTake, approving, onApprove, onBackToCount
         )}
       </section>
 
-      {uncounted > 0 && !approved && (
+      {uncounted > 0 && !closed && (
         <p className="rounded-xl border border-warning/40 bg-warning/10 p-4 text-sm text-foreground">
           <span className="tabular font-semibold">{formatNumber(uncounted)}</span> artigos ainda nao foram contados.
           Ao aprovar, esses artigos ficam com a quantidade actual - nenhum movimento e escrito para eles.
@@ -163,19 +171,25 @@ export function StockTakeReview({ stockTake, approving, onApprove, onBackToCount
       )}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        {approved ? (
+        {approved && (
           <Badge variant="success" size="lg" dot>
             Aprovado - os movimentos ja foram escritos
           </Badge>
-        ) : (
-          <Button variant="outline" onClick={onBackToCount}>
-            Voltar a contagem
-          </Button>
         )}
-        {!approved && (
-          <Button size="lg" onClick={() => setConfirming(true)} loading={approving}>
-            Aprovar inventario
-          </Button>
+        {cancelled && (
+          <Badge variant="destructive" size="lg" dot>
+            Cancelado - nenhum movimento foi escrito
+          </Badge>
+        )}
+        {!closed && (
+          <>
+            <Button variant="outline" onClick={onBackToCount}>
+              Voltar a contagem
+            </Button>
+            <Button size="lg" onClick={() => setConfirming(true)} loading={approving}>
+              Aprovar inventario
+            </Button>
+          </>
         )}
       </div>
 

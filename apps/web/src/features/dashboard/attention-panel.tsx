@@ -10,7 +10,7 @@ import { money, number as formatNumber, quantity as formatQuantity } from '@/lib
 import { qk } from '@/lib/query';
 import { cn } from '@/lib/utils';
 
-import { RetryButton } from '@/features/reports/chart-kit';
+import { RetryButton, figureSize } from '@/features/reports/chart-kit';
 import {
   useDashboardReport,
   type PageEnvelope,
@@ -119,8 +119,15 @@ export function AttentionPanel({ todayRange }: { todayRange: { from: string; to:
             emptyLabel="Sem devolucoes hoje."
             empty={(today.data?.refundMinor ?? 0) === 0}
           >
-            <div className="px-4 py-3">
-              <p className="stat-value text-destructive">{money(today.data?.refundMinor ?? 0)}</p>
+            <div className="min-w-0 px-4 py-3">
+              {/*
+                Three of these cards share a row from `lg`, so at 1024 each one
+                has about 176px of text. A 24px Kwanza figure needs more than
+                that and the card is overflow-hidden, so a big refund day used
+                to get silently clipped mid-number, with nothing on screen to
+                reveal the rest.
+              */}
+              <RefundFigure minor={today.data?.refundMinor ?? 0} />
               <p className="mt-1 text-sm text-muted-foreground">
                 {'Em '}
                 <span className="tabular">{formatNumber(today.data?.transactionCount ?? 0, 0)}</span>
@@ -169,6 +176,18 @@ export function AttentionPanel({ todayRange }: { todayRange: { from: string; to:
         )}
       </div>
     </section>
+  );
+}
+
+function RefundFigure({ minor }: { minor: number }) {
+  const figure = money(minor);
+  return (
+    <p
+      className={cn('stat-value min-w-0 truncate text-destructive', figureSize(figure))}
+      title={figure}
+    >
+      {figure}
+    </p>
   );
 }
 

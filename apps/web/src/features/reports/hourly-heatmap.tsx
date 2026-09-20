@@ -133,8 +133,16 @@ export function HourlyHeatmap({ cells, metric = 'revenue' }: HourlyHeatmapProps)
           </caption>
           <thead>
             <tr>
-              <th scope="col" className="sr-only">
-                Dia
+              {/*
+                This cell must stay IN the table. `sr-only` sets
+                position:absolute, which forces display:block on a table-cell
+                and drops it out of the column model - the header row would
+                then have 24 cells against the body's 25 and every hour label
+                would sit one column left of the cells it names. Hide the text,
+                keep the cell.
+              */}
+              <th scope="col" className="w-8 pb-1">
+                <span className="sr-only">Dia</span>
               </th>
               {Array.from({ length: 24 }, (_, hour) => (
                 <th
@@ -214,8 +222,18 @@ function HeatmapLegend({ bins, format }: { bins: Bins; format: (value: number) =
       <span className="font-medium">Menos</span>
       <ul className="flex items-center gap-1">
         {BIN_ALPHA.map((alpha, index) => {
-          const lower = index === 0 ? 0 : (bins.edges[index - 1] ?? 0);
-          const upper = index === 0 ? 0 : (bins.edges[index] ?? bins.max);
+          // binOf() puts a value in bin n when edges[n-2] < value <= edges[n-1],
+          // so the swatch for bin n is bounded by edges[n-2] and edges[n-1] -
+          // reading edges[n-1]/edges[n] labelled every swatch with the NEXT
+          // bin's range and made the darkest one claim the maximum twice.
+          const lower = index <= 1 ? 0 : (bins.edges[index - 2] ?? 0);
+          const upper = index === 0 ? 0 : (bins.edges[index - 1] ?? bins.max);
+          // There is no hover on a tablet, so the range is an aria-label too,
+          // not only a title the finger can never reach.
+          const range =
+            index === 0
+              ? 'Sem vendas'
+              : `${format(Math.round(lower))} a ${format(Math.round(upper))}`;
           return (
             <li
               key={index}
@@ -223,11 +241,8 @@ function HeatmapLegend({ bins, format }: { bins: Bins; format: (value: number) =
               style={{
                 backgroundColor: index === 0 ? 'hsl(var(--muted))' : `hsl(var(--primary) / ${alpha})`,
               }}
-              title={
-                index === 0
-                  ? 'Sem vendas'
-                  : `${format(Math.round(lower))} a ${format(Math.round(upper))}`
-              }
+              aria-label={range}
+              title={range}
             />
           );
         })}

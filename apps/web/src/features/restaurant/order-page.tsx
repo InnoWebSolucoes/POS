@@ -214,7 +214,7 @@ export default function OrderPage() {
 
   if (!needsOrder && (!order || orderQuery.isPending)) {
     return (
-      <div className="flex h-full min-h-0 flex-1 overflow-hidden">
+      <div className="flex h-full min-h-0 flex-1">
         <div className="flex min-h-0 flex-1 flex-col gap-3 border-r border-border p-4">
           <Skeleton className="h-10 w-56" />
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
@@ -234,7 +234,7 @@ export default function OrderPage() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+    <div className="flex h-full min-h-0 flex-1 flex-col">
       {ready && (
         <div className="flex shrink-0 items-center gap-3 bg-success px-4 py-3 text-success-foreground">
           <BellRing className="size-6 shrink-0 animate-ticket-pulse" aria-hidden="true" />

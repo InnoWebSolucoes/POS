@@ -131,6 +131,14 @@ export default function StorefrontPage() {
 
   const filterCount = activeFilterCount(filters);
 
+  /*
+   * The catalogue query is disabled until the shop resolves, and a disabled
+   * react-query reports isLoading === false with no data - which rendered
+   * "Sem resultados" over an empty grid on every first visit. isPending stays
+   * true while the query is idle, so the skeletons hold the screen instead.
+   */
+  const catalogueLoading = productsQuery.isPending;
+
   if (shopQuery.isError) {
     return (
       <ShopLayout slug={entitySlug} shop={null}>
@@ -174,7 +182,7 @@ export default function StorefrontPage() {
 
           <div className="flex items-center gap-2">
             <p className="tabular text-sm text-muted-foreground">
-              {productsQuery.isLoading ? 'A carregar...' : `${total} produtos`}
+              {catalogueLoading ? 'A carregar...' : `${total} produtos`}
             </p>
 
             <div className="ml-auto flex items-center gap-2">
@@ -204,7 +212,7 @@ export default function StorefrontPage() {
               message={errorMessage(productsQuery.error)}
               onRetry={() => void productsQuery.refetch()}
             />
-          ) : productsQuery.isLoading ? (
+          ) : catalogueLoading ? (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
               {Array.from({ length: 8 }).map((_, index) => (
                 <ProductCardSkeleton key={index} />
@@ -260,7 +268,7 @@ export default function StorefrontPage() {
           </SheetBody>
           <SheetFooter>
             <Button block size="lg" onClick={() => setFiltersOpen(false)}>
-              Ver {total} produtos
+              {catalogueLoading ? 'Ver produtos' : `Ver ${total} produtos`}
             </Button>
           </SheetFooter>
         </SheetContent>

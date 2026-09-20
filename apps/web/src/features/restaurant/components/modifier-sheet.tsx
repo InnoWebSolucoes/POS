@@ -260,17 +260,31 @@ export function ModifierSheet({
           </section>
         </SheetBody>
 
-        <SheetFooter className="sm:justify-between">
-          <div className="flex items-center justify-between gap-4 sm:justify-start">
-            <span className="text-sm text-muted-foreground">Total do artigo</span>
-            <span className="tabular text-lg font-semibold text-foreground">{money(lineTotalMinor)}</span>
+        {/*
+          Long Kwanza totals and a long group name both live in this row. It is
+          the row that must bend: it wraps, and the label is capped, so the
+          confirm button can never be pushed off the edge of the sheet.
+        */}
+        <SheetFooter className="sm:flex-wrap sm:justify-between">
+          <div className="flex min-w-0 items-center justify-between gap-4 sm:justify-start">
+            <span className="shrink-0 text-sm text-muted-foreground">Total do artigo</span>
+            <span className="tabular shrink-0 text-lg font-semibold text-foreground">
+              {money(lineTotalMinor)}
+            </span>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <div className="flex min-w-0 gap-2">
+            <Button variant="outline" className="shrink-0" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button onClick={confirm} disabled={!valid} loading={pending} className="min-w-[10rem]">
-              {valid ? 'Adicionar a conta' : missing[0]?.namePt ?? 'Escolha as opcoes'}
+            <Button
+              onClick={confirm}
+              disabled={!valid}
+              loading={pending}
+              className="min-w-[10rem] max-w-[16rem]"
+            >
+              <span className="truncate">
+                {valid ? 'Adicionar a conta' : missing[0]?.namePt ?? 'Escolha as opcoes'}
+              </span>
             </Button>
           </div>
         </SheetFooter>

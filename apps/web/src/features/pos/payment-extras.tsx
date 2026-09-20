@@ -98,7 +98,7 @@ export function PaymentExtras({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4">
       <div className="space-y-2">
         <Label>{t('pos.attachCustomer', 'Associar Cliente')}</Label>
         <CustomerPicker customer={customer} onChange={onCustomerChange} />
@@ -126,9 +126,13 @@ export function PaymentExtras({
         </div>
         {promoError && <p className="text-sm text-destructive">{promoError}</p>}
         {promotionCode && promotionDiscountMinor > 0 && (
-          <Badge variant="success" size="lg">
-            <Tag className="size-3.5" aria-hidden="true" />
-            {promotionCode} - {money(promotionDiscountMinor)}
+          // A promo code can be forty characters; a badge never wraps, so it
+          // has to be allowed to clip instead of widening the dialog column.
+          <Badge variant="success" size="lg" className="max-w-full overflow-hidden">
+            <Tag className="size-3.5 shrink-0" aria-hidden="true" />
+            <span className="min-w-0 truncate">
+              {promotionCode} - {money(promotionDiscountMinor)}
+            </span>
           </Badge>
         )}
       </div>

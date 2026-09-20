@@ -331,6 +331,26 @@ export function shareLabel(share: number): string {
   return `${formatNumber(share * 100, 1)}%`;
 }
 
+/**
+ * Type size for a big read-only figure, stepped down by how long the string is.
+ *
+ * `.stat-value` is a fixed `text-xl sm:text-2xl`, which is right for a count
+ * and wrong for Kwanza: "10 904 162,44 Kz" is sixteen monospace characters, so
+ * at 24px it needs ~230px and the tiles it lives in are 176-210px wide. The
+ * thousands separator Intl gives us is a no-break space, so the figure cannot
+ * wrap out of trouble either - it simply leaves the box.
+ *
+ * Pair it with `min-w-0 truncate` and a `title`, the way StatCard does, so the
+ * worst case is an ellipsis with the full value one tap away rather than a
+ * number painted over the tile next door.
+ */
+export function figureSize(value: string): string {
+  if (value.length > 24) return 'text-sm sm:text-base';
+  if (value.length > 17) return 'text-base sm:text-lg';
+  if (value.length > 11) return 'text-lg sm:text-xl';
+  return '';
+}
+
 /** Money in a right-aligned column: bare digits, monospace. */
 export function MoneyCell({
   minor,

@@ -211,7 +211,10 @@ export default function InventoryPage() {
         </>
       }
     >
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {/* Stock valuation for a supermarket runs to eight figures. Four across
+          at xl leaves 176px of text per tile, which StatCard has to ellipsise;
+          hold two columns until 2xl, where four still fit whole. */}
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-4">
         {showValuation ? (
           <>
             <StatCard

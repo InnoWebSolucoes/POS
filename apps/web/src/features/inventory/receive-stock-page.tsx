@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { useMutation } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { FileDown, PackagePlus, ShieldAlert } from 'lucide-react';
 
@@ -35,7 +36,7 @@ import { ProductPicker, type PickedProduct } from './components/product-picker';
 import { ReceiptConfirmation } from './components/receipt-confirmation';
 import { ReceiptHistory } from './components/receipt-history';
 import { ReceiptLineRow, lineTotalMinor, stepFor, type ReceiptLineDraft } from './components/receipt-lines';
-import type { StockReceiptDto } from './types';
+import type { PurchaseOrderDto, StockReceiptDto } from './types';
 
 export default function ReceiveStockPage() {
   const { t } = useTranslation();
@@ -43,12 +44,18 @@ export default function ReceiveStockPage() {
   const canReceive = can('inventory:receive');
   const showCost = can('product:cost');
 
+  // "Registar entrada" on a purchase order links here with ?purchaseOrderId=,
+  // so the screen has to arrive with that order already chosen - otherwise the
+  // buyer lands on an empty form and has to find the encomenda a second time.
+  const [searchParams] = useSearchParams();
+  const linkedOrderId = searchParams.get('purchaseOrderId') ?? undefined;
+
   const [lines, setLines] = React.useState<ReceiptLineDraft[]>([]);
   const [highlight, setHighlight] = React.useState<string | null>(null);
   const [supplierId, setSupplierId] = React.useState<string | undefined>(undefined);
   const [locationId, setLocationId] = React.useState<string | undefined>(undefined);
   const [invoiceNumber, setInvoiceNumber] = React.useState('');
-  const [purchaseOrderId, setPurchaseOrderId] = React.useState<string | undefined>(undefined);
+  const [purchaseOrderId, setPurchaseOrderId] = React.useState<string | undefined>(linkedOrderId);
   const [note, setNote] = React.useState('');
   const [confirmation, setConfirmation] = React.useState<StockReceiptDto | null>(null);
   const [formError, setFormError] = React.useState<string | null>(null);
@@ -113,10 +120,8 @@ export default function ReceiveStockPage() {
     return () => window.clearTimeout(timer);
   }, [highlight]);
 
-  const loadPurchaseOrder = () => {
-    const order = purchaseOrder.data;
-    if (!order?.lines) return;
-    const outstanding = order.lines.filter((line) => line.outstandingQuantity > 0);
+  const applyPurchaseOrder = React.useCallback((order: PurchaseOrderDto) => {
+    const outstanding = (order.lines ?? []).filter((line) => line.outstandingQuantity > 0);
     if (outstanding.length === 0) {
       toast.warning('Nada em falta', 'Esta encomenda ja foi totalmente recebida.');
       return;
@@ -136,7 +141,26 @@ export default function ReceiveStockPage() {
       })),
     );
     toast.success('Linhas carregadas', `${outstanding.length} linhas em falta da encomenda ${order.reference}.`);
+  }, []);
+
+  const loadPurchaseOrder = () => {
+    const order = purchaseOrder.data;
+    if (!order?.lines) return;
+    applyPurchaseOrder(order);
   };
+
+  // Arriving from "Registar entrada" on an encomenda: fill the form the moment
+  // the order lands, once, so the buyer never has to press Carregar by hand.
+  // The supplier goes in too, or the encomenda dropdown would be showing an
+  // option that is not in its own (supplier-filtered) list.
+  const seeded = React.useRef(false);
+  React.useEffect(() => {
+    const order = purchaseOrder.data;
+    if (seeded.current || !linkedOrderId || !order || order.id !== linkedOrderId) return;
+    seeded.current = true;
+    if (order.supplierId) setSupplierId(order.supplierId);
+    applyPurchaseOrder(order);
+  }, [linkedOrderId, purchaseOrder.data, applyPurchaseOrder]);
 
   const reset = () => {
     setLines([]);

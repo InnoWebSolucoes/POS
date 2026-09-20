@@ -53,7 +53,14 @@ export function SupplierPerformanceTab({ supplierId }: { supplierId: string }) {
         </Select>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {/*
+        This tab lives inside a sheet that is never wider than 40rem, so the
+        viewport breakpoints lie: `xl:grid-cols-4` fired on a 1280px screen and
+        cut each tile down to ~101px of text inside a 600px panel - the wider
+        the screen got, the more "Total gasto" was clipped. Two columns is what
+        the sheet can actually hold.
+      */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <StatCard
           label="Prazo medio de entrega"
           icon={CalendarClock}

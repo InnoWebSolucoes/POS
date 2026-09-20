@@ -87,12 +87,22 @@ export function createApp(): Express {
       rateLimit({
         windowMs: 15 * 60 * 1000,
         limit: 20,
+        /*
+          Only FAILED attempts count. The limit is keyed by IP, and a shop has
+          one internet connection: every till, tablet and phone in the building
+          shares an address. Counting successes too meant an ordinary shift
+          change - six people signing in across two registers - could reach the
+          limit and lock the whole shop out of its own till for fifteen minutes.
+          Guessing a password is a run of failures, so that is what we count.
+        */
+        skipSuccessfulRequests: true,
         standardHeaders: 'draft-7',
         legacyHeaders: false,
         message: {
           error: {
             code: 'rate_limited',
-            message: 'Demasiadas tentativas de login. Aguarde 15 minutos.',
+            message:
+              'Demasiadas tentativas falhadas. Aguarde 15 minutos ou peca a um responsavel para repor a palavra-passe.',
             details: null,
           },
         },

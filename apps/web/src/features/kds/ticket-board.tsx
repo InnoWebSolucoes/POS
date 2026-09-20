@@ -29,7 +29,13 @@ export interface TicketBoardProps {
   onEightySix: (item: KdsTicketItem) => void;
 }
 
-const GRID = 'grid gap-4 grid-cols-[repeat(auto-fill,minmax(20rem,1fr))]';
+/*
+ * items-start is deliberate. Grid rows stretch by default, so one twenty-line
+ * banquet ticket made every other card in its row just as tall and parked their
+ * "Iniciar" / "Marcar Pronto" buttons at the bottom of all that empty space,
+ * off the screen. Each card now keeps its own height.
+ */
+const GRID = 'grid items-start gap-4 grid-cols-[repeat(auto-fill,minmax(20rem,1fr))]';
 
 export function TicketBoard({
   entries,

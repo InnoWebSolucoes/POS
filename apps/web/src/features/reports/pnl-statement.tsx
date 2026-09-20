@@ -4,7 +4,7 @@ import { ArrowDownRight, ArrowRight, ArrowUpRight } from 'lucide-react';
 import { amount, money, number as formatNumber, percent } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
-import { deltaPercent } from './chart-kit';
+import { deltaPercent, figureSize } from './chart-kit';
 import type { ReportSummary } from './report-api';
 
 /**
@@ -263,17 +263,28 @@ export function KeyFigure({
   hint?: string;
   tone?: 'default' | 'success' | 'destructive';
 }) {
+  // Three of these share one row from `sm` up, which leaves each tile about
+  // 184px of text at 1024. A 24px Kwanza figure wants 216px and cannot wrap
+  // (Intl separates the thousands with a no-break space), so an eight-figure
+  // revenue used to paint straight over the tile beside it. Step the size down
+  // the way StatCard does, and keep the full value in the title.
+  const figure = money(value);
+
   return (
-    <div className="rounded-xl border border-border p-4">
-      <p className="text-sm font-medium text-muted-foreground">{label}</p>
+    <div className="min-w-0 rounded-xl border border-border p-4">
+      <p className="truncate text-sm font-medium text-muted-foreground" title={label}>
+        {label}
+      </p>
       <p
         className={cn(
-          'stat-value mt-1',
+          'stat-value mt-1 min-w-0 truncate',
+          figureSize(figure),
           tone === 'success' && 'text-success',
           tone === 'destructive' && 'text-destructive',
         )}
+        title={figure}
       >
-        {money(value)}
+        {figure}
       </p>
       {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
     </div>

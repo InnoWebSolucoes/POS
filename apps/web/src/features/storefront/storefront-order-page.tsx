@@ -49,7 +49,13 @@ export default function StorefrontOrderPage() {
   const [formContact, setFormContact] = React.useState(email || phone);
 
   const contact = email ? { email } : phone ? { phone } : null;
-  const enabled = Boolean(shop) && Boolean(initialNumber) && Boolean(contact);
+  /*
+   * "Has a lookup to do" and "can run it yet" are different questions. Mixing
+   * them showed the tracking form - and a shopper who had just paid saw it
+   * under "Encomenda Confirmada" - for as long as the shop query was in flight.
+   */
+  const wantsLookup = Boolean(initialNumber) && Boolean(contact);
+  const enabled = Boolean(shop) && wantsLookup;
 
   const orderQuery = useQuery({
     queryKey: storefrontKeys.order(entitySlug, initialNumber, email || phone),
@@ -111,7 +117,7 @@ export default function StorefrontOrderPage() {
         </div>
       )}
 
-      {!enabled ? (
+      {!wantsLookup ? (
         <Card className="mx-auto max-w-lg">
           <CardContent className="space-y-4 p-5">
             <div className="space-y-1">
@@ -153,7 +159,7 @@ export default function StorefrontOrderPage() {
           )}
           onRetry={() => void orderQuery.refetch()}
         />
-      ) : orderQuery.isLoading || !order ? (
+      ) : orderQuery.isPending || !order ? (
         <div className="space-y-4">
           <Skeleton className="h-8 w-64" />
           <Skeleton className="h-48 w-full rounded-2xl" />
@@ -234,7 +240,9 @@ export default function StorefrontOrderPage() {
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                 Artigos
               </h2>
-              <ul className="space-y-3">
+              {/* Capped where the column is sticky, so a long order cannot push
+                  the Total out of the bottom of a card that is stuck there. */}
+              <ul className="space-y-3 lg:max-h-80 lg:overflow-y-auto lg:pr-1">
                 {order.lines.map((line, index) => (
                   <li key={`${line.name}-${index}`} className="flex justify-between gap-3 text-sm">
                     <span className="min-w-0">

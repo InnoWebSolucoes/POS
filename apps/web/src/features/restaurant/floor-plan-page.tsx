@@ -210,12 +210,19 @@ export default function FloorPlanPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="lg" asChild>
-              <Link to="/restaurante/pedidos">
-                <Utensils className="size-5" />
-                Pedidos
-              </Link>
-            </Button>
+            {/*
+              /restaurante/pedidos is gated on restaurant:order, and a member
+              can now have restaurant:table without it. Offering the link anyway
+              bounces them straight back out, so only show it if it opens.
+            */}
+            {can('restaurant:order') && (
+              <Button variant="outline" size="lg" asChild>
+                <Link to="/restaurante/pedidos">
+                  <Utensils className="size-5" />
+                  Pedidos
+                </Link>
+              </Button>
+            )}
             <Button
               variant="outline"
               size="icon-lg"

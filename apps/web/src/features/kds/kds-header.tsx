@@ -159,7 +159,17 @@ export function KdsHeader({
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-3">
-          <Tabs value={station} onValueChange={(value) => onStationChange(value as StationFilter)}>
+          {/*
+           * min-w-0 is load-bearing: without it this wrapper keeps its
+           * min-content width, the list inside never gets to scroll, and with
+           * every station open the last tabs hang off a viewport the KDS root
+           * clips with overflow-hidden.
+           */}
+          <Tabs
+            value={station}
+            onValueChange={(value) => onStationChange(value as StationFilter)}
+            className="min-w-0 max-w-full"
+          >
             <TabsList className="gap-2 p-1.5">
               <TabsTrigger value="all" className="min-h-touch-lg gap-3 px-5 text-xl">
                 {t('kds.allStations', 'Todos os Postos')}

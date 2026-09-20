@@ -31,6 +31,21 @@ interface PaymentDraft {
 /** These two settle against the customer record, so they need one attached. */
 const NEEDS_CUSTOMER: PaymentMethod[] = ['store_credit', 'loyalty_points'];
 
+/**
+ * Kwanza runs long - "1 234 567,89 Kz" is fifteen characters. A fixed type size
+ * wraps the amount due across three lines inside a half-width dialog column, so
+ * the size steps down as the string grows instead.
+ */
+function moneyScale(text: string, ladder: readonly [string, string, string, string]): string {
+  if (text.length > 17) return ladder[3];
+  if (text.length > 13) return ladder[2];
+  if (text.length > 10) return ladder[1];
+  return ladder[0];
+}
+
+const DUE_SIZES = ['text-5xl', 'text-4xl', 'text-3xl', 'text-2xl'] as const;
+const CHANGE_SIZES = ['text-3xl', 'text-3xl', 'text-2xl', 'text-xl'] as const;
+
 export interface PaymentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -105,6 +120,22 @@ export function PaymentDialog({
     });
   }, [totals.totalMinor]);
 
+  /*
+    Detaching the customer disables store credit and points, but a row already
+    set to one of them would sail past the disabled button and come back as a
+    400 from the server. Put those rows back on the default method instead.
+  */
+  useEffect(() => {
+    if (customer) return;
+    setPayments((current) =>
+      current.some((row) => NEEDS_CUSTOMER.includes(row.method))
+        ? current.map((row) =>
+            NEEDS_CUSTOMER.includes(row.method) ? { ...row, method: defaultMethod } : row,
+          )
+        : current,
+    );
+  }, [customer, defaultMethod]);
+
   const paidMinor = payments.reduce((sum, row) => sum + row.amountMinor, 0);
   const remainingMinor = totals.totalMinor - paidMinor;
   const changeMinor = payments.reduce(
@@ -113,9 +144,14 @@ export function PaymentDialog({
   );
 
   const active = payments.find((row) => row.id === activeId) ?? payments[0] ?? null;
+
+  // The notes offered must cover the row being tendered, not the whole sale.
+  // On a split, suggesting the sale total would compute change against money
+  // the customer never handed over for that row.
+  const tenderTargetMinor = active && active.amountMinor > 0 ? active.amountMinor : totals.totalMinor;
   const tenders = useMemo(
-    () => suggestTenders(totals.totalMinor, entity?.currency ?? 'AOA'),
-    [totals.totalMinor, entity?.currency],
+    () => suggestTenders(tenderTargetMinor, entity?.currency ?? 'AOA'),
+    [tenderTargetMinor, entity?.currency],
   );
 
   const patch = (id: string, changes: Partial<PaymentDraft>) => {
@@ -147,7 +183,16 @@ export function PaymentDialog({
 
   const methodDisabled = (method: PaymentMethod): boolean => NEEDS_CUSTOMER.includes(method) && !customer;
 
-  const settled = remainingMinor === 0 && payments.every((row) => row.amountMinor > 0);
+  const dueText = money(totals.totalMinor);
+  const changeText = money(changeMinor);
+
+  /*
+    A sale worth nothing cannot be paid for: the API requires at least one
+    payment and every payment to be positive. Say so, rather than leaving a
+    dead Concluir button and no explanation.
+  */
+  const nothingToPay = totals.totalMinor <= 0;
+  const settled = !nothingToPay && remainingMinor === 0 && payments.every((row) => row.amountMinor > 0);
 
   const confirm = () => {
     if (!settled) return;
@@ -167,22 +212,48 @@ export function PaymentDialog({
           <DialogTitle>{t('pos.payment', 'Pagamento')}</DialogTitle>
         </DialogHeader>
 
-        <DialogBody className="grid gap-5 md:grid-cols-2">
+        {/* minmax(0,...) and not 1fr: an auto-width track takes its min-content
+            from the widest untruncatable child, which a seven-figure tender
+            note or a long payment label would push past the dialog. */}
+        <DialogBody className="grid gap-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           {/* ------------------------------------------------ tender column */}
-          <div className="space-y-4">
+          <div className="min-w-0 space-y-4">
             <div className="rounded-xl border border-border bg-muted/40 p-4 text-center">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 {t('pos.amountDue', 'Valor a Pagar')}
               </p>
-              <p className="tabular mt-1 text-5xl font-bold leading-none text-foreground">
-                {money(totals.totalMinor)}
+              <p
+                className={cn(
+                  'tabular mt-1 min-w-0 truncate font-bold leading-none text-foreground',
+                  moneyScale(dueText, DUE_SIZES),
+                )}
+                title={dueText}
+              >
+                {dueText}
               </p>
               {changeMinor > 0 && (
-                <p className="tabular mt-3 border-t border-border pt-3 text-3xl font-bold text-success">
-                  {t('pos.change', 'Troco')} {money(changeMinor)}
-                </p>
+                <div className="mt-3 border-t border-border pt-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-success">
+                    {t('pos.change', 'Troco')}
+                  </p>
+                  <p
+                    className={cn(
+                      'tabular mt-1 min-w-0 truncate font-bold leading-none text-success',
+                      moneyScale(changeText, CHANGE_SIZES),
+                    )}
+                    title={changeText}
+                  >
+                    {changeText}
+                  </p>
+                </div>
               )}
             </div>
+
+            {nothingToPay && (
+              <p className="text-sm font-medium text-destructive">
+                Esta venda nao tem valor a pagar. Reduza o desconto para a poder concluir.
+              </p>
+            )}
 
             <div className="space-y-2">
               <Label>{t('pos.paymentMethod', 'Metodo')}</Label>
@@ -214,10 +285,10 @@ export function PaymentDialog({
                     <Button
                       key={value}
                       variant="secondary"
-                      className="tabular h-12"
+                      className="tabular h-12 min-w-0 px-2"
                       onClick={() => patch(active.id, { tenderedMinor: value })}
                     >
-                      {amount(value)}
+                      <span className="min-w-0 truncate">{amount(value)}</span>
                     </Button>
                   ))}
                 </div>

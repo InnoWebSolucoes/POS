@@ -96,12 +96,15 @@ export function PayDialog({
     setEntry(0);
   };
 
-  const addTender = (value: number, forMethod: PaymentMethod = activeMethod) => {
+  /**
+   * `cashTendered` is what the guest actually handed over. Cash above what is
+   * owed is change, not a bigger payment, and it has to travel with the tender
+   * or the receipt comes out showing no troco at all.
+   */
+  const addTender = (value: number, forMethod: PaymentMethod = activeMethod, cashTendered?: number) => {
     const applied = Math.min(Math.max(0, Math.round(value)), remaining);
     if (applied <= 0) return;
-    // Cash handed over above what is owed is change, not a bigger payment. It
-    // has to travel with the tender or the receipt shows no troco at all.
-    const tendered = Math.max(0, Math.round(value));
+    const tendered = cashTendered === undefined ? 0 : Math.round(cashTendered);
     setTenders((current) => [
       ...current,
       {
@@ -329,7 +332,11 @@ export function PayDialog({
                   )}
                 </div>
                 <div className="flex items-end gap-2">
-                  <Button variant="outline" block onClick={() => addTender(entry || remaining)}>
+                  <Button
+                    variant="outline"
+                    block
+                    onClick={() => addTender(entry || remaining, activeMethod, entry || undefined)}
+                  >
                     Adicionar pagamento
                   </Button>
                 </div>
@@ -341,10 +348,12 @@ export function PayDialog({
                   <ul className="divide-y divide-border rounded-lg border border-border">
                     {tenders.map((tender, index) => (
                       <li key={`${tender.method}-${index}`} className="flex items-center gap-3 px-3 py-2">
-                        <span className="flex-1 text-sm text-foreground">
+                        <span className="min-w-0 flex-1 truncate text-sm text-foreground">
                           {PAYMENT_METHOD_LABELS[tender.method].pt}
                         </span>
-                        <span className="tabular text-sm font-semibold">{amount(tender.amountMinor)}</span>
+                        <span className="tabular shrink-0 whitespace-nowrap text-sm font-semibold">
+                          {amount(tender.amountMinor)}
+                        </span>
                         <Button
                           variant="ghost"
                           size="icon"

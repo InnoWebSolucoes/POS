@@ -141,7 +141,9 @@ export function SplitPanel({
                   {bill.lines.length} {bill.lines.length === 1 ? 'artigo' : 'artigos'}
                 </span>
               </span>
-              <span className="tabular text-sm font-semibold">{amount(bill.totalMinor)}</span>
+              <span className="tabular shrink-0 whitespace-nowrap text-sm font-semibold">
+                {amount(bill.totalMinor)}
+              </span>
               <Button size="sm" variant="outline" disabled={remaining <= 0} onClick={() => onPayBill(bill)}>
                 Registar
               </Button>

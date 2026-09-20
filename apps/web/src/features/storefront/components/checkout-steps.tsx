@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Store, Truck } from 'lucide-react';
 
 import type { FulfilmentMethod, PaymentGateway } from '@pos/shared';
-import { Spinner } from '@/components/ui';
+import { Button, Spinner } from '@/components/ui';
 import { formatPhone } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
@@ -68,11 +68,22 @@ export function FulfilmentStep({
               <Spinner className="size-4" /> A carregar lojas...
             </div>
           ) : pickupFailed || pickupPoints.length === 0 ? (
-            <p className="rounded-lg bg-warning/15 px-3 py-2 text-sm text-foreground">
-              Esta loja ainda nao publica os pontos de levantamento online. Escolha entrega ao
-              domicilio
-              {shopPhone ? ` ou combine o levantamento pelo ${formatPhone(shopPhone)}.` : '.'}
-            </p>
+            /*
+             * Without a point to choose there is nothing to submit, so this
+             * branch used to end at a "Continuar" that could never light up.
+             * It now carries the way out of the dead end.
+             */
+            <div className="space-y-3 rounded-lg bg-warning/15 px-3 py-3">
+              <p className="text-sm text-foreground">
+                Esta loja ainda nao publica os pontos de levantamento online. Escolha entrega ao
+                domicilio
+                {shopPhone ? ` ou combine o levantamento pelo ${formatPhone(shopPhone)}.` : '.'}
+              </p>
+              <Button variant="outline" size="lg" onClick={() => onMethod('delivery')}>
+                <Truck className="size-5" aria-hidden="true" />
+                Entregar na minha morada
+              </Button>
+            </div>
           ) : (
             <div className="space-y-2" role="radiogroup" aria-label="Ponto de levantamento">
               {pickupPoints.map((point) => (

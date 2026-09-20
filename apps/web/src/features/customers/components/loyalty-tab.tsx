@@ -115,9 +115,9 @@ export function LoyaltyTab({ customer, tierConfig }: LoyaltyTabProps) {
       <div className="grid gap-4 md:grid-cols-2">
         <div className="panel flex flex-col gap-3 p-5">
           <div className="flex items-start justify-between gap-3">
-            <div>
+            <div className="min-w-0">
               <p className="text-sm font-medium text-muted-foreground">Saldo de pontos</p>
-              <p className="stat-value mt-1 text-foreground">{formatNumber(customer.points)}</p>
+              <p className="stat-value mt-1 truncate text-foreground">{formatNumber(customer.points)}</p>
               <p className="mt-1 text-sm text-muted-foreground">
                 Vale <span className="tabular font-semibold text-foreground">{money(redemptionMinor)}</span>{' '}
                 em compras
@@ -149,9 +149,17 @@ export function LoyaltyTab({ customer, tierConfig }: LoyaltyTabProps) {
 
         <div className="panel flex flex-col gap-3 p-5">
           <div className="flex items-start justify-between gap-3">
-            <div>
+            {/* Without min-w-0 this block cannot shrink below the unbreakable
+                Kwanza figure, so a large store credit pushed the icon beside it
+                clean out of the panel. */}
+            <div className="min-w-0">
               <p className="text-sm font-medium text-muted-foreground">Credito de loja</p>
-              <p className="stat-value mt-1 text-foreground">{money(customer.storeCreditMinor)}</p>
+              <p
+                className="stat-value mt-1 truncate text-foreground"
+                title={money(customer.storeCreditMinor)}
+              >
+                {money(customer.storeCreditMinor)}
+              </p>
               <p className="mt-1 text-sm text-muted-foreground">
                 Utilizavel como pagamento no registo.
               </p>

@@ -58,7 +58,10 @@ export function StockTab({ filters }: { filters: ReportFilterState }) {
 
       {showFinancial ? (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {/* Same reason as the stock screen: a whole-catalogue valuation is an
+              eight-figure Kwanza value, and a quarter of the row at xl is
+              176px - too narrow for it. */}
+          <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
             <StatCard
               label="Valor a custo"
               value={money(totals?.costValueMinor ?? 0)}

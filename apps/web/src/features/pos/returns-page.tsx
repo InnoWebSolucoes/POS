@@ -103,8 +103,20 @@ export default function ReturnsPage() {
   }, [sale, draft]);
 
   const refundTotalMinor = selectedLines.reduce((sum, line) => sum + line.amountMinor, 0);
-  const alreadyFullyRefunded =
-    sale !== null && sale.lines.every((line) => availableToReturn(line) <= 0);
+
+  /*
+    Say up front why a sale cannot be returned. The server refuses a voided sale
+    outright, and finding that out only after picking quantities, a reason and a
+    refund method is a dead end the screen can spare the cashier.
+  */
+  const blockedReason: string | null =
+    sale === null
+      ? null
+      : sale.status === 'voided'
+        ? 'Esta venda foi anulada, por isso nao pode ser devolvida.'
+        : sale.lines.every((line) => availableToReturn(line) <= 0)
+          ? 'Todos os artigos desta venda ja foram devolvidos.'
+          : null;
 
   const refund = useMutation({
     mutationFn: () =>
@@ -281,13 +293,8 @@ export default function ReturnsPage() {
               </div>
 
               <div className="min-h-0 flex-1 overflow-y-auto">
-                {alreadyFullyRefunded ? (
-                  <EmptyState
-                    icon={RotateCcw}
-                    size="sm"
-                    title="Nada a devolver"
-                    description="Todos os artigos desta venda ja foram devolvidos."
-                  />
+                {blockedReason ? (
+                  <EmptyState icon={RotateCcw} size="sm" title="Nada a devolver" description={blockedReason} />
                 ) : (
                   <ReturnLines
                     sale={sale}

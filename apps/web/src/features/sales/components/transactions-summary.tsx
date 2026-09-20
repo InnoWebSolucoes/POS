@@ -13,7 +13,13 @@ export interface TransactionsSummaryProps {
 export function TransactionsSummary({ summary, loading }: TransactionsSummaryProps) {
   return (
     <section aria-label="Resumo do periodo" className="flex flex-col gap-2">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+      {/*
+        Four of these five are money. Five across at xl leaves 133px of text per
+        tile and a Kwanza total wants ~180px, so StatCard ellipsised the figure;
+        two columns on a phone did the same. Three is the densest that still
+        shows the whole number.
+      */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <StatCard
           label="Transaccoes"
           value={number(summary?.transactionCount ?? 0)}
@@ -46,7 +52,7 @@ export function TransactionsSummary({ summary, loading }: TransactionsSummaryPro
           value={money(summary?.averageTicketMinor ?? 0)}
           icon={Calculator}
           loading={loading}
-          className="col-span-2 md:col-span-1"
+          className="sm:col-span-2 xl:col-span-1"
         />
       </div>
 

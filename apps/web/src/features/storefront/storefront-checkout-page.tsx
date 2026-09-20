@@ -14,7 +14,7 @@ import {
   Textarea,
   toast,
 } from '@/components/ui';
-import { ApiRequestError } from '@/lib/api';
+import { ApiRequestError, getToken } from '@/lib/api';
 import { money } from '@/lib/format';
 
 import { loadPickupPoints, placeOrder, storefrontKeys } from './api';
@@ -61,10 +61,20 @@ export default function StorefrontCheckoutPage() {
   const [note, setNote] = React.useState('');
   const [errors, setErrors] = React.useState<FieldErrors>({});
 
+  /*
+   * There is no public endpoint for the store list, so this reads the staff one
+   * and only when a staff session actually exists. Fired anonymously it is a
+   * guaranteed 401, and a 401 on a non-anonymous call makes the api client tear
+   * down whatever session the browser did have - a public page must never be
+   * able to do that. Without a session the checkout goes straight to the
+   * "combine com a loja" branch instead.
+   */
+  const hasStaffSession = Boolean(getToken());
+
   const pickupQuery = useQuery({
     queryKey: storefrontKeys.pickupPoints(entitySlug),
     queryFn: () => loadPickupPoints(shop?.id ?? ''),
-    enabled: Boolean(shop?.id) && method === 'pickup',
+    enabled: Boolean(shop?.id) && method === 'pickup' && hasStaffSession,
     retry: false,
   });
 
@@ -134,6 +144,31 @@ export default function StorefrontCheckoutPage() {
     return true;
   };
 
+  /** Why "Continuar" is greyed out. A disabled button with no reason is a wall. */
+  const blockingHint = (index: number): string | null => {
+    if (index === 0) {
+      if (stepValid(0)) return null;
+      return 'Escolha onde quer levantar, ou volte a entrega ao domicilio.';
+    }
+    if (index === 1) {
+      const missing: string[] = [];
+      if (!contact.name.trim()) missing.push('o seu nome');
+      if (!contact.email.trim() && !contact.phone.trim()) missing.push('um email ou telefone');
+      if (method === 'delivery' && !addressOk) missing.push('a morada de entrega');
+      return missing.length > 0 ? `Falta indicar ${missing.join(', ')}.` : null;
+    }
+    if (index === 2) {
+      return stepValid(2) ? null : 'Escolha um metodo de pagamento disponivel.';
+    }
+    for (let earlier = 0; earlier < 3; earlier += 1) {
+      const hint = blockingHint(earlier);
+      if (hint) return `${hint} Toque em Voltar para completar.`;
+    }
+    return null;
+  };
+
+  const hint = blockingHint(step);
+
   if (shopQuery.isError) {
     return (
       <ShopLayout slug={entitySlug} shop={null}>
@@ -186,8 +221,8 @@ export default function StorefrontCheckoutPage() {
                     pickupId={pickupId}
                     onPickup={setPickupId}
                     pickupPoints={pickupQuery.data ?? []}
-                    pickupLoading={pickupQuery.isLoading}
-                    pickupFailed={pickupQuery.isError}
+                    pickupLoading={pickupQuery.isFetching}
+                    pickupFailed={pickupQuery.isError || !hasStaffSession}
                     shopPhone={shop?.phone ?? null}
                   />
                 )}
@@ -242,6 +277,12 @@ export default function StorefrontCheckoutPage() {
                   />
                 )}
 
+                {hint && (
+                  <p className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
+                    {hint}
+                  </p>
+                )}
+
                 <div className="flex flex-col gap-3 pt-2 sm:flex-row">
                   {step > 0 && (
                     <Button
@@ -267,12 +308,18 @@ export default function StorefrontCheckoutPage() {
                   ) : (
                     <Button
                       size="xl"
-                      className="flex-1"
+                      /*
+                       * Buttons are whitespace-nowrap, and "Confirmar encomenda
+                       * 1 234 567,89 Kz" at text-lg with px-8 is wider than a
+                       * phone. Two centred lines below sm, one row above it.
+                       */
+                      className="h-auto min-h-16 flex-1 flex-col gap-1 px-4 py-3 text-base sm:flex-row sm:gap-3 sm:text-lg"
                       loading={placement.isPending}
                       disabled={!stepValid(0) || !stepValid(1) || !stepValid(2)}
                       onClick={() => placement.mutate()}
                     >
-                      Confirmar encomenda {money(cart.cart.totalMinor)}
+                      <span>Confirmar encomenda</span>
+                      <span className="tabular">{money(cart.cart.totalMinor)}</span>
                     </Button>
                   )}
                 </div>
@@ -285,7 +332,9 @@ export default function StorefrontCheckoutPage() {
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                 A sua encomenda
               </h2>
-              <ul className="space-y-2">
+              {/* A 30-line basket used to push the totals - the whole point of
+                  this column - below the fold of a card that is stuck there. */}
+              <ul className="space-y-2 lg:max-h-72 lg:overflow-y-auto lg:pr-1">
                 {lines.map((line) => (
                   <li key={line.id} className="flex justify-between gap-3 text-sm">
                     <span className="min-w-0">

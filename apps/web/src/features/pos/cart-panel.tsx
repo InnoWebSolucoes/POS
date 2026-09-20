@@ -102,18 +102,24 @@ export function CartPanel({
       <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div className="flex min-w-0 items-center gap-2">
           <ShoppingCart className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-          <span className="text-sm font-semibold text-foreground">
+          <span className="truncate text-sm font-semibold text-foreground">
             {totals.itemCount === 1 ? '1 artigo' : `${totals.itemCount} artigos`}
           </span>
           {!online && (
-            <Badge variant="warning" size="sm" dot pulse>
-              <CloudOff className="size-3.5" aria-hidden="true" />
-              {t('common.offline', 'Sem ligacao')}
-              {queued > 0 ? ` - ${queued} por sincronizar` : ''}
+            // The badge never wraps, so it is what gives way when the panel is
+            // narrow - the running total on the right has to stay whole.
+            <Badge variant="warning" size="sm" dot pulse className="min-w-0 overflow-hidden">
+              <CloudOff className="size-3.5 shrink-0" aria-hidden="true" />
+              <span className="min-w-0 truncate">
+                {t('common.offline', 'Sem ligacao')}
+                {queued > 0 ? ` - ${queued} por sincronizar` : ''}
+              </span>
             </Badge>
           )}
         </div>
-        <span className="tabular text-lg font-bold text-foreground">{money(totals.totalMinor)}</span>
+        <span className="tabular shrink-0 whitespace-nowrap text-lg font-bold text-foreground">
+          {money(totals.totalMinor)}
+        </span>
       </header>
 
       {/* Lines */}
@@ -153,18 +159,18 @@ export function CartPanel({
         <dl className="max-h-24 space-y-1.5 overflow-y-auto overscroll-contain text-sm">
           <div className="flex items-center justify-between gap-3">
             <dt className="shrink-0 text-muted-foreground">{t('common.subtotal', 'Subtotal')}</dt>
-            <dd className="tabular truncate font-medium text-foreground">{amount(totals.subtotalMinor)}</dd>
+            <dd className="tabular min-w-0 truncate font-medium text-foreground">{amount(totals.subtotalMinor)}</dd>
           </div>
           {totals.discountMinor > 0 && (
             <div className="flex items-center justify-between gap-3">
               <dt className="shrink-0 text-muted-foreground">{t('common.discount', 'Desconto')}</dt>
-              <dd className="tabular truncate font-medium text-success">- {amount(totals.discountMinor)}</dd>
+              <dd className="tabular min-w-0 truncate font-medium text-success">- {amount(totals.discountMinor)}</dd>
             </div>
           )}
           {totals.taxBreakdown.map((row) => (
             <div key={row.rateBps} className="flex items-center justify-between gap-3">
               <dt className="shrink-0 text-muted-foreground">IVA {percent(row.rateBps)}</dt>
-              <dd className="tabular truncate font-medium text-foreground">{amount(row.taxMinor)}</dd>
+              <dd className="tabular min-w-0 truncate font-medium text-foreground">{amount(row.taxMinor)}</dd>
             </div>
           ))}
         </dl>
@@ -187,13 +193,20 @@ export function CartPanel({
             {empty ? t('pos.pay', 'Pagar') : `${t('pos.pay', 'Pagar')} ${money(totals.totalMinor)}`}
           </span>
         </Button>
-        <div className="mt-2 grid grid-cols-3 gap-2">
-          <Button variant="outline" disabled={empty || !canHold} onClick={onHold} leftIcon={<PauseCircle />}>
-            {t('pos.hold', 'Suspender')}
-          </Button>
-          <Button variant="outline" disabled={!canHold} onClick={onRecall} leftIcon={<PlayCircle />}>
-            {t('pos.recall', 'Recuperar')}
-          </Button>
+        {/* A control that can never be pressed only teaches the cashier that the
+            app is broken, so suspender/recuperar are absent - not greyed out -
+            for a member whose permissions do not include them. */}
+        <div className={cn('mt-2 grid gap-2', canHold ? 'grid-cols-3' : 'grid-cols-1')}>
+          {canHold && (
+            <Button variant="outline" disabled={empty} onClick={onHold} leftIcon={<PauseCircle />}>
+              {t('pos.hold', 'Suspender')}
+            </Button>
+          )}
+          {canHold && (
+            <Button variant="outline" onClick={onRecall} leftIcon={<PlayCircle />}>
+              {t('pos.recall', 'Recuperar')}
+            </Button>
+          )}
           <Button variant="outline" disabled={empty} onClick={onClear} leftIcon={<Trash2 />}>
             {t('common.clear', 'Limpar')}
           </Button>

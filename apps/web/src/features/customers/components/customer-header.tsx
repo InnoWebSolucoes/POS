@@ -29,10 +29,16 @@ function ContactLine({ icon: Icon, label, value, mono = false }: ContactLineProp
 
 function Figure({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="flex flex-col">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="tabular text-lg font-semibold text-foreground">{value}</p>
-      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+    <div className="flex min-w-0 flex-col">
+      <p className="truncate text-xs text-muted-foreground">{label}</p>
+      {/* Kwanza is long and Intl joins the thousands with a no-break space, so
+          the figure cannot wrap its way out of a narrow track. Clip it inside
+          the cell rather than over the next one, and keep the whole value on
+          the element for a long-press. */}
+      <p className="tabular truncate text-lg font-semibold text-foreground" title={value}>
+        {value}
+      </p>
+      {hint && <p className="truncate text-xs text-muted-foreground">{hint}</p>}
     </div>
   );
 }
@@ -90,7 +96,11 @@ export function CustomerHeader({ customer, tierConfig, canWrite, onEdit }: Custo
 
       <Separator />
 
-      <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-5">
+      {/* Five across at xl gives each figure a 161px track, and "Total gasto"
+          for a long-standing customer is a 15-16 character Kwanza value needing
+          ~162px at 18px monospace - it spilled into its neighbour. Five only
+          from 2xl, where the track is 220px. */}
+      <div className="grid gap-4 sm:grid-cols-3 2xl:grid-cols-5">
         <Figure
           label="Pontos"
           value={formatNumber(customer.points)}

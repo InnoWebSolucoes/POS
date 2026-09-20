@@ -19,6 +19,7 @@ import {
 } from '@/components/ui';
 import { useSocketEvent } from '@/hooks/use-socket';
 import { api } from '@/lib/api';
+import { useAuth } from '@/lib/auth-store';
 import { amount, money, relativeTime } from '@/lib/format';
 import { qk } from '@/lib/query';
 
@@ -54,6 +55,10 @@ const STATUS_VARIANTS: Record<OrderStatus, 'muted' | 'default' | 'success' | 'se
 export default function RestaurantOrdersPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const can = useAuth((state) => state.can);
+  // The floor plan needs restaurant:table, which this screen does not. Without
+  // it the route bounces straight back, so the way out has to be hidden.
+  const canSeeFloor = can('restaurant:table');
   const [status, setStatus] = useState<string>(ALL);
   const [serverId, setServerId] = useState<string>(ALL);
 
@@ -169,7 +174,7 @@ export default function RestaurantOrdersPage() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+    <div className="flex h-full min-h-0 flex-1 flex-col">
       <header className="shrink-0 border-b border-border bg-card px-4 py-3">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="mr-auto text-lg font-semibold text-foreground">Pedidos em aberto</h1>
@@ -212,9 +217,11 @@ export default function RestaurantOrdersPage() {
             <RefreshCw />
           </Button>
 
-          <Button variant="outline" leftIcon={<LayoutGrid />} onClick={() => navigate('/restaurante/sala')}>
-            Sala
-          </Button>
+          {canSeeFloor && (
+            <Button variant="outline" leftIcon={<LayoutGrid />} onClick={() => navigate('/restaurante/sala')}>
+              Sala
+            </Button>
+          )}
         </div>
 
         <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -234,7 +241,9 @@ export default function RestaurantOrdersPage() {
           emptyIcon={ClipboardList}
           emptyTitle="Sem pedidos em aberto"
           emptyDescription="Abra uma conta a partir do plano de sala."
-          emptyAction={{ label: 'Ir para a sala', onClick: () => navigate('/restaurante/sala') }}
+          emptyAction={
+            canSeeFloor ? { label: 'Ir para a sala', onClick: () => navigate('/restaurante/sala') } : undefined
+          }
           defaultSort={{ key: 'openedAt', direction: 'desc' }}
           onRowClick={(order) => navigate(`/restaurante/pedido/${order.id}`)}
         />

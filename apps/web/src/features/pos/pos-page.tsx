@@ -68,6 +68,28 @@ export default function PosPage() {
     setPendingQuantityState(value);
   }, []);
 
+  /*
+    One idempotency key per basket, not per attempt.
+
+    The server de-duplicates on this key and hands back the sale it already
+    wrote. A fresh uuid on every tap throws that away: if the request times out
+    after the sale was recorded, the cashier's second tap rings the basket up a
+    second time - charged twice, stock taken twice. The key is only retired once
+    a basket is finished or abandoned.
+  */
+  const saleKeyRef = useRef<string | null>(null);
+
+  const saleKey = useCallback((): string => {
+    if (!saleKeyRef.current) saleKeyRef.current = crypto.randomUUID();
+    return saleKeyRef.current;
+  }, []);
+
+  const startNewBasket = useCallback(() => {
+    saleKeyRef.current = null;
+    register.clear();
+    setCustomer(null);
+  }, [register]);
+
   /* ---------------------------------------------------------------- offline */
 
   const refreshQueued = useCallback(() => {
@@ -254,7 +276,7 @@ export default function PosPage() {
     promotionCode: register.promotionCode,
     tipMinor: 0,
     note: null,
-    idempotencyKey: crypto.randomUUID(),
+    idempotencyKey: saleKey(),
     loyaltyPointsRedeemed: 0,
   });
 
@@ -276,8 +298,7 @@ export default function PosPage() {
     onSuccess: ({ sale, queued: wasQueued }) => {
       successChime(settings.beepVolume);
       setPaymentOpen(false);
-      register.clear();
-      setCustomer(null);
+      startNewBasket();
 
       if (wasQueued) {
         refreshQueued();
@@ -314,8 +335,7 @@ export default function PosPage() {
       }),
     onSuccess: () => {
       setHoldOpen(false);
-      register.clear();
-      setCustomer(null);
+      startNewBasket();
       void queryClient.invalidateQueries({ queryKey: qk.heldSales() });
       toast.success('Venda suspensa');
     },
@@ -323,10 +343,7 @@ export default function PosPage() {
       toast.error('Nao foi possivel suspender', error instanceof Error ? error.message : 'Erro desconhecido.'),
   });
 
-  const clearSale = () => {
-    register.clear();
-    setCustomer(null);
-  };
+  const clearSale = () => startNewBasket();
 
   /* ------------------------------------------------------------------ view  */
 
@@ -422,6 +439,8 @@ export default function PosPage() {
         open={recallOpen}
         onOpenChange={setRecallOpen}
         onLoaded={(sale) => {
+          // A recalled basket is a different sale from whatever was here before.
+          saleKeyRef.current = null;
           register.replaceLines(fromSaleLines(sale.lines));
           register.setOrderDiscount(null);
           register.setPromotion(null, 0);

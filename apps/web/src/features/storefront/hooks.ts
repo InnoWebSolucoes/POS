@@ -134,7 +134,11 @@ export function useCart(slug: string, enabled = true): CartController {
   return {
     cart,
     itemCount: cart ? cart.lines.length : 0,
-    loading: query.isLoading,
+    // isPending, not isLoading: while the shop is still being fetched this query
+    // is disabled, and a disabled query reports isLoading === false. The basket
+    // pages read this flag to choose between a skeleton and "o carrinho esta
+    // vazio", and were flashing the empty state on every first load.
+    loading: query.isPending,
     error: query.error,
     refetch: () => void query.refetch(),
     add: (input) => addMutation.mutateAsync(input),
