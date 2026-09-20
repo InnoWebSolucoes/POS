@@ -158,6 +158,20 @@ Brings up PostgreSQL, the API, an nginx-served web build, and a nightly `pg_dump
 
 `JWT_SECRET` is required and must be at least 32 characters — the API refuses to start in production without it.
 
+### Hosting the two halves separately
+
+The web app is a static build and will go anywhere. A `vercel.json` at the root
+points Vercel at it: it builds `@pos/web` and serves `apps/web/dist`, with every
+path rewritten to `index.html` so a deep link like `/kds` survives a refresh.
+Set `VITE_API_URL` to wherever the API lives, or the browser will look for
+`/api` on the same origin and find nothing.
+
+**The API cannot go on Vercel.** It holds open Socket.io connections for the
+kitchen screen and live stock, and multer writes uploaded product images to
+disk - neither survives a serverless function that is created per request and
+has no filesystem. It needs a host that runs a long-lived process: the
+`docker compose` above, or any Node host such as Railway, Render or Fly.
+
 ---
 
 ## Hardware

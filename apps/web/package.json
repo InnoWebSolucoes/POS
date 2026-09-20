@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "prebuild": "tsc -p ../../packages/shared/tsconfig.build.json",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
