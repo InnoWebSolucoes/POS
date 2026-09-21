@@ -166,6 +166,13 @@ path rewritten to `index.html` so a deep link like `/kds` survives a refresh.
 Set `VITE_API_URL` to wherever the API lives, or the browser will look for
 `/api` on the same origin and find nothing.
 
+The install command carries `--include=dev` deliberately. A build host sets
+`NODE_ENV=production`, and npm then skips devDependencies - which is where
+`vite` lives, so the build dies with `vite: command not found`. It is not
+obvious from the failure, because `typescript` is pulled in by a production
+dependency and therefore survives, so `tsc` runs and only the bundler is
+missing.
+
 **The API cannot go on Vercel.** It holds open Socket.io connections for the
 kitchen screen and live stock, and multer writes uploaded product images to
 disk - neither survives a serverless function that is created per request and
